@@ -54,22 +54,22 @@ BodyWeightSummary <- list()
 FWDataSummary <- list()
 defaultVal <- 350
 SEX <- 'M'
-dbtoken <- sendigR::initEnvironment(dbType = 'sqlite', 
-                                    dbPath = paste0(homePath,"/DataCentral-2023-03-30.db"),
-                                    dbCreate = FALSE)
-RptDoseStudyID <- sendigR::getStudiesSDESIGN(dbtoken,studyDesignFilter = "PARALLEL")
-MIStudyIDS <- sendigR::genericQuery(dbtoken, "SELECT STUDYID FROM MI") #limiting to MI because it is the least likely to be filled
-dbStudyIDs <- intersect(RptDoseStudyID$STUDYID,MIStudyIDS$STUDYID)
-rm(MIStudyIDS) #Freeing Memory
-rm(RptDoseStudyID) #Freeing Memory
-dbStudyIDS <- unique(dbStudyIDs)
-#Pull INDs and Study Titles for those StudyIDs
-APPID <- sendigR::genericQuery(dbtoken, "SELECT * FROM ID WHERE STUDYID in (:1)", dbStudyIDs)
-STITLE <- sendigR::genericQuery(dbtoken, 'SELECT STUDYID, TSVAL FROM TS WHERE TSPARMCD = "STITLE" and STUDYID in (:1)', dbStudyIDs)
-dbStudys <- merge(APPID, STITLE, by = "STUDYID")
-dbStudys$CombinedName <- paste0(dbStudys$APPID,"-",dbStudys$STUDYID,": ",dbStudys$TSVAL)
-rm(APPID) #Freeing Memory
-rm(STITLE) #Freeing Memory
+# dbtoken <- sendigR::initEnvironment(dbType = 'sqlite', 
+#                                     dbPath = paste0(homePath,"/DataCentral-2023-03-30.db"),
+#                                     dbCreate = FALSE)
+# RptDoseStudyID <- sendigR::getStudiesSDESIGN(dbtoken,studyDesignFilter = "PARALLEL")
+# MIStudyIDS <- sendigR::genericQuery(dbtoken, "SELECT STUDYID FROM MI") #limiting to MI because it is the least likely to be filled
+# dbStudyIDs <- intersect(RptDoseStudyID$STUDYID,MIStudyIDS$STUDYID)
+# rm(MIStudyIDS) #Freeing Memory
+# rm(RptDoseStudyID) #Freeing Memory
+# dbStudyIDS <- unique(dbStudyIDs)
+# #Pull INDs and Study Titles for those StudyIDs
+# APPID <- sendigR::genericQuery(dbtoken, "SELECT * FROM ID WHERE STUDYID in (:1)", dbStudyIDs)
+# STITLE <- sendigR::genericQuery(dbtoken, 'SELECT STUDYID, TSVAL FROM TS WHERE TSPARMCD = "STITLE" and STUDYID in (:1)', dbStudyIDs)
+# dbStudys <- merge(APPID, STITLE, by = "STUDYID")
+# dbStudys$CombinedName <- paste0(dbStudys$APPID,"-",dbStudys$STUDYID,": ",dbStudys$TSVAL)
+# rm(APPID) #Freeing Memory
+# rm(STITLE) #Freeing Memory
 
 
 #Load Relevant Functions
