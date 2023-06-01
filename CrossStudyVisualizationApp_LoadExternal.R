@@ -5,7 +5,7 @@
 #* Add Detailed Scoring Controls (i.e. user can determine scoring ranges)
 #* Ability to load different studies > In progress (SB)
     #* Added UI Elements for Selection of Local and Database Load (Done)
-    #* Add Checks for Loaded Data to be Repeat-Dose Studies of Proper Dosing Regimen (4 doses total)
+    #* Add Checks for Loaded Data to be Repeat-Dose Studies of Proper Dosing Regimen (4 doses total) (Done)
     #* Add non-Biocelerate scoring and data normalization to handle more than 4 studies 
     #* Edit Data Loading and Cleaning Sections to be more generalized for other studies
     #* 
@@ -54,7 +54,9 @@ BodyWeightSummary <- list()
 FWDataSummary <- list()
 defaultVal <- 350
 SEX <- 'M'
-# dbtoken <- sendigR::initEnvironment(dbType = 'sqlite', 
+
+#Database Load
+# dbtoken <- sendigR::initEnvironment(dbType = 'sqlite',
 #                                     dbPath = paste0(homePath,"/DataCentral-2023-03-30.db"),
 #                                     dbCreate = FALSE)
 # RptDoseStudyID <- sendigR::getStudiesSDESIGN(dbtoken,studyDesignFilter = "PARALLEL")
@@ -85,7 +87,7 @@ source('Functions/makeFWPlot.R')
 #Standardizing Terminology
 MITESTCDlist <- list('LIVER' = c('LIVER'),
                      'KIDNEY' = c('KIDNEY'),
-                     'HEMATOPOIETIC' = c('BONE MARROW', 'SPLEEN', 'THYMUS'),
+                     'HEMATOPOIETIC' = c('BONE MARROW', 'SPLEEN', 'THYMUS','LYMPH NODE, MESENTERIC', 'LYMPH NODE, MANDIBULAR'),
                      'ENDOCRINE' = c('GLAND, THYROID', 'GLAND, ADRENAL', 'GLAND, PITUITARY',
                                                         'GLAND, PARATHYROID', 'PANCREAS'),
                      'REPRODUCTIVE' = c('CERVIX','EPIDIDYMIS','GLAND, PROSTATE','GLAND, MAMMARY',
@@ -303,6 +305,9 @@ ui <- dashboardPage (
                           column(width=10,fluidRow(splitLayout(cellWidths = c("50%","50%"),
                                                uiOutput('HMIplotreactive'), 
                                    uiOutput('HMIplotreactive2')))),
+                          column(width=10,fluidRow(splitLayout(cellWidths = c("50%","50%"),
+                                                               uiOutput('HMIplotreactive4'), 
+                                                               uiOutput('HMIplotreactive5')))),
                           column(width=10,fluidRow(uiOutput('HMIplotreactive3'))))
                )),
       tabPanel('Endocrine',
@@ -618,7 +623,7 @@ server <- shinyServer(function(input, output, session) {
        Rat6576TKPools <- unique(Rat6576$pp$POOLID)
        Rat6576TKIndv <- Rat6576$pooldef$USUBJID[which(Rat6576$pooldef$POOLID %in% Rat6576TKPools)]
        Rat5492TKPools <- unique(Rat5492$pp$POOLID)
-       Rat5492TKIndv <- Rat5492$pooldef$USUBJID[which(Rat5492$pooldef$POOLID %in% Rat5492TKPools)] 
+       Rat5492TKIndv <- unique(Rat5492$pooldef$USUBJID[which(Rat5492$pooldef$POOLID %in% Rat5492TKPools)]) 
        CompileData <- CompileData[!(CompileData$USUBJID %in% c(Rat5492TKIndv,Rat6576TKIndv)),]
      } else {
        #Make CompileData with DM of all animals
@@ -653,9 +658,16 @@ server <- shinyServer(function(input, output, session) {
            Name <- SENDStudyLookup$Name[which(SENDStudyLookup$StudyID == study)]
            TKPools <- unique(get(Name)$pp$POOLID)
            TKIndv <- get(Name)$pooldef$USUBJID[which(get(Name)$pooldef$POOLID %in% TKPools)]
-           StoreTKIndv <- append(StoreTKIndv, TKIndv, after = length(StoreTKIndv))
-           #Remove TK animals from CompileData
-           CompileData <- CompileData[!(CompileData$USUBJID %in% c(TKIndv)),]
+           #Check if all treated animals are TK Animals >> Include them if true
+           StudyData <- CompileData[which(CompileData$StudyID %in% study),]
+           StudyData <- StudyData[!(StudyData$USUBJID %in% c(TKIndv)),]
+           if (length(unique(StudyData$ARMCD)) == 1){
+             
+           } else {
+             StoreTKIndv <- append(StoreTKIndv, TKIndv, after = length(StoreTKIndv))
+             #Remove TK animals from CompileData
+             CompileData <- CompileData[!(CompileData$USUBJID %in% c(TKIndv)),] 
+           }
          }
        }
      }
@@ -663,6 +675,11 @@ server <- shinyServer(function(input, output, session) {
      AllData <- CompileData
      CompileData <- CompileData[!str_detect(CompileData$ARMCD, "R"),]
      CompileData$ARMCD <- factor(CompileData$ARMCD)
+     if (length(unique(CompileData$ARMCD))>4){
+       #error catch for accidental inclusion of other arm numbers
+       CompileData <- CompileData[which(CompileData$ARMCD %in% c(1,2,3,4)),]
+       CompileData$ARMCD <- as.factor(as.numeric(CompileData$ARMCD))
+     }
      levels(CompileData$ARMCD) <- doseRanks
      if (Gender == 'M') {
        CompileData <- CompileData[which(CompileData$SEX == Gender),]
@@ -717,10 +734,22 @@ server <- shinyServer(function(input, output, session) {
                                    "BWSTRESN" = NA,"VISITDY" = NA)
        for (nj in 1:numstudies){
          Name <- paste0('SENDStudy',as.character(nj))
+         #Check that "VISITDY" is used, 
+         if (any(get(Name)$bw$VISITDY[which((get(Name)$bw$VISITDY <= 1))])){
+         # if there are pre-study weights include them
          StudyInitialWeight <- get(Name)$bw[which((get(Name)$bw$VISITDY <= 1)),
                                        c("STUDYID", "USUBJID", "BWSTRESN","VISITDY")]
          StudyBodyWeight <- get(Name)$bw[which(get(Name)$bw$BWTESTCD == "BW"),
                                   c("STUDYID", "USUBJID", "BWSTRESN","VISITDY")]
+         } else {
+           #Change BWDY to VISIDY
+           StudyInitialWeight <- get(Name)$bw[which((get(Name)$bw$VISITDY <= 1)),
+                                              c("STUDYID", "USUBJID", "BWSTRESN","BWDY")]
+           StudyBodyWeight <- get(Name)$bw[which(get(Name)$bw$BWTESTCD == "BW"),
+                                           c("STUDYID", "USUBJID", "BWSTRESN","BWDY")]
+           colnames(StudyInitialWeight) <- c("STUDYID", "USUBJID", "BWSTRESN","VISITDY")
+           colnames(StudyBodyWeight) <- c("STUDYID", "USUBJID", "BWSTRESN","VISITDY")
+         }
          #Store Values
          InitialWeight <- rbind(InitialWeight,StudyInitialWeight)
          BodyWeight <- rbind(BodyWeight, StudyBodyWeight)
@@ -752,11 +781,14 @@ server <- shinyServer(function(input, output, session) {
          for (Indv in unique(BodyWeight$USUBJID)){
            IndvTerm <- BodyWeight[which(BodyWeight$USUBJID == Indv),]
            InitialW <- IndvTerm[which(IndvTerm$VISITDY <= 0),c("BWSTRESN","VISITDY")]
+           if (nrow(InitialW) == 0){ #error catch for animals missing pre-study
+             InitialW <- IndvTerm[which(IndvTerm$VISITDY <= 1),c("BWSTRESN","VISITDY")]
+           }
            InitialW <- as.numeric(InitialW$BWSTRESN[which(InitialW$VISITDY == max(InitialW$VISITDY),)])
            IndvTerm$Diff <- abs(as.numeric(IndvTerm$BWSTRESN) - InitialW)
            maxdiff <- max(as.numeric(IndvTerm$Diff), na.rm = TRUE)  ## Find largest difference from initial
            index <- which(TermBodyWeight$USUBJID == Indv)
-           TermBodyWeight$BWSTRESN[index] <- IndvTerm$BWSTRESN[which(as.numeric(IndvTerm$Diff) == maxdiff)]
+           TermBodyWeight$BWSTRESN[index] <- unique(IndvTerm$BWSTRESN[which(as.numeric(IndvTerm$Diff) == maxdiff)])
          }
          TermBodyWeight$BWSTRESN <- as.numeric(TermBodyWeight$BWSTRESN)
          #If RAT Studies included remove TK Values
@@ -884,16 +916,97 @@ server <- shinyServer(function(input, output, session) {
      RatDaily$Species <- rep("Rat", nrow(RatDaily))
      FWData <- rbind(DogDaily,RatDaily)
      } else {
-       
-       #Load in Studies FW
-       
-       #Check Number of Species 
-       
-       #Make DataFrame per Species
-       
+       #Check Number of Species in Compile Data
+       NumSpecies <- unique(CompileData$Species)
+       #Make Blank Data Frame
+       DailyFood <- data.frame(ARMCD = "0", FWDY = 0, FWSTRESN = 0, Compound = '0',
+                               Species = NA, Diff = 0)
+       for (TypeSpecies in NumSpecies){
+         #Get StudyIDs for Studies in this species
+         SpeciesIDs <- CompileData$StudyID[which(CompileData$Species == TypeSpecies)]
+         SpeciesFood <- data.frame(ARMCD = "0", FWDY = 0, FWSTRESN = 0, Compound = '0')
+         ##Load in Studies FW
+         for (study in unique(SpeciesIDs)){
+           Name <- SENDStudyLookup$Name[which(SENDStudyLookup$StudyID == study)]
+           TRTName <- get(Name)$ts$TSVAL[which(get(Name)$ts$TSPARMCD == "TRT")]
+           Species <- get(Name)$ts$TSVAL[which(get(Name)$ts$TSPARMCD == "SPECIES")]
+           #Check that there is a FW Domain
+           if (is.null(get(Name)$fw) == TRUE){
+             if (is.null(get(Name)$cl) == TRUE){
+               #Skips Study if it has neither cl or fw
+               
+             } else {
+               #Converting cl into fw 
+               FoodData <- merge(CompileData[which(CompileData$StudyID == study),c("USUBJID","StudyID","Species","SEX","ARMCD")],
+                                  get(Name)$cl[,c("USUBJID", "CLDY","CLSTRESC")])
+               #Convert Categorical to Numeric %
+               FoodDataSum <- FoodData %>%
+                 dplyr::mutate(CLSTRESC = case_when(CLSTRESC == "NORMAL" ~ 1.0
+                                                    ,CLSTRESC == "Food Consumption, reduced" ~ 0.5
+                                                    ,CLSTRESC == "Food Consumption, minimal" ~ 0.25
+                                                    ,TRUE ~ 0
+                 ))
+               #Rename Column names to match Dog6576
+               names(FoodDataSum)[6] <- "FWDY"
+               names(FoodDataSum)[7] <- "FWSTRESN"
+               FoodDataSum <- FoodDataSum %>% #Average by Treatment Group per Day
+                 group_by(ARMCD,FWDY) %>% summarise_at(vars(FWSTRESN),mean)
+               FoodDataSum$FWDY <- as.numeric(FoodDataSum$FWDY)
+               FoodDataSum$Compound <- rep(TRTName, nrow(FoodDataSum))
+               SpeciesFood <-rbind(SpeciesFood,FoodDataSum)
+             }
+           } else {
+           #Check if study is a rat study due to pooled housing
+           if (Species %in% c("RAT","Rat","rat")){
+             if ("POOLID" %in%  colnames(get(Name)$fw)){
+             PoolFoodData <- merge(get(Name)$pooldef,
+                               get(Name)$fw[,c("POOLID","FWDY","FWSTRESN")], by = "POOLID")
+             } else { #Accounting for studies that don't pool rats
+               PoolFoodData <- get(Name)$fw[,c("USUBJID","FWDY","FWSTRESN")]
+             }
+             FoodData <- merge(CompileData[which(CompileData$StudyID == study),c("USUBJID","StudyID","Species","SEX","ARMCD")],
+                               PoolFoodData[,c("USUBJID", "FWDY","FWSTRESN")], by = "USUBJID") 
+             #Remove TK Animals
+             FoodData <- FoodData[!(FoodData$USUBJID %in% c(StoreTKIndv)),]
+             #Average by Treatment Group per Day
+             FoodDataSum <- FoodData %>%  
+               group_by(ARMCD,FWDY) %>% summarise_at(vars(FWSTRESN),mean)
+             FoodDataSum$Compound <- rep(TRTName,nrow(FoodDataSum))
+             SpeciesFood <- rbind(SpeciesFood,FoodDataSum)
+           } else {
+             #Non Pooled Rat Load
+             FoodData <- merge(CompileData[which(CompileData$StudyID == study), c("USUBJID","StudyID","Species","SEX","ARMCD")],
+                               get(Name)$fw[,c("USUBJID", "FWDY","FWSTRESN")], by = "USUBJID")
+             FoodDataSum <- FoodData %>%  
+               group_by(ARMCD,FWDY) %>% summarise_at(vars(FWSTRESN),mean)
+             FoodDataSum$Compound <- rep(TRTName,nrow(FoodDataSum))
+             SpeciesFood <- rbind(SpeciesFood,FoodDataSum)
+           }
+           }
+         }
+         #Remove formatting
+         SpeciesFood <- na.omit(SpeciesFood)
+         #Take Average consumption of Pre-Study Animals
+         PreStudy <- SpeciesFood[which(SpeciesFood$FWDY <=0),]
+         MeanFC <- mean(PreStudy$FWSTRESN, na.rm = TRUE)
+         #Normalize FWStresn for comparisson using Average
+         SpeciesFood$FWSTRESN <- (SpeciesFood$FWSTRESN/MeanFC)
+         ##Make DataFrame per Species
+         FoodDaily <- SpeciesFood %>%
+           group_by(FWDY, Compound) %>%
+           arrange(FWDY) %>%
+           mutate(Diff = FWSTRESN - lag(FWSTRESN, default = first(FWSTRESN)))
+         FoodDaily$Species <- rep(TypeSpecies, nrow(FoodDaily))
+         #Store Values in DailyFood
+         DailyFood <- rbind(DailyFood, FoodDaily)
+         }
+       #Remove Formatting line
+       DailyFood <- na.omit(DailyFood)
+       #Spit out FWData dataframe of all species
+       FWData <- DailyFood
      }
-
      FWDataSummary[[Gender]] <- FWData
+     CompileDataPrime <- CompileData
   
      ##################### Organ System Specific Graphs ######################
      #Will Run through all of the possible organSystems to generate graphs and fill CompileData
@@ -906,6 +1019,24 @@ server <- shinyServer(function(input, output, session) {
        LBData<- rbind(LBData, Dog6576$lb[which((Dog6576$lb$VISITDY >= 1)),c("USUBJID","LBSPEC","LBTESTCD","LBSTRESN","VISITDY")],
                       Rat5492$lb[which((Rat5492$lb$VISITDY >= 1)),c("USUBJID","LBSPEC","LBTESTCD","LBSTRESN", "VISITDY")],
                       Rat6576$lb[which((Rat6576$lb$VISITDY >= 1)),c("USUBJID","LBSPEC","LBTESTCD","LBSTRESN", "VISITDY")])
+       } else {
+         LBData <- data.frame("USUBJID" = NA,"LBSPEC" = NA,"LBTESTCD" = NA,
+                              "LBSTRESN" = NA, "VISITDY" = NA)
+         for (nj in 1:numstudies){
+           Name <- paste0('SENDStudy',as.character(nj))
+           #Pull all of the relevant LB Data
+           if ("LBDY" %in% colnames(get(Name)$lb) == TRUE){
+             LBD <- get(Name)$lb[which((get(Name)$lb$VISITDY >= 1)),
+                                 c("USUBJID","LBSPEC","LBTESTCD","LBSTRESN", "LBDY")]
+             colnames(LBD) <- c("USUBJID","LBSPEC","LBTESTCD","LBSTRESN", "VISITDY")
+           } else {
+             LBD <- get(Name)$lb[which((get(Name)$lb$VISITDY >= 1)),
+                                 c("USUBJID","LBSPEC","LBTESTCD","LBSTRESN", "VISITDY")] 
+           }
+           #Add to CompileData
+           LBData <- rbind(LBData, LBD)
+         }
+         LBData <- na.omit(LBData)
        }
        # Concatenate LBSPEC and LBTESTCD
        LBData$LBTESTCD <- paste(LBData$LBSPEC, LBData$LBTESTCD, sep = ' | ')
@@ -956,6 +1087,21 @@ server <- shinyServer(function(input, output, session) {
                        Rat5492$mi[which(Rat5492$mi$MISPEC %in% MIDOMAIN), c("USUBJID", "MISTRESC","MISEV","MISPEC")],
                        Rat6576$mi[which(Rat6576$mi$MISPEC %in% MIDOMAIN), c("USUBJID", "MISTRESC","MISEV","MISPEC")])
        gsub(pattern = 'Tension lipidosis', replacement = 'Tension Lipidosis', MIData$MISTRESC)
+       } else {
+         #Add Load of MIData
+         MIData <- data.frame("USUBJID" = NA,"MISTRESC" = NA,"MISEV" = NA,
+                              "MISPEC" = NA)
+         for (nj in 1:numstudies){
+           Name <- paste0('SENDStudy',as.character(nj))
+           #Pull all of the relevant DM Data
+           MBD <- get(Name)$mi[which( get(Name)$mi$MISPEC %in% MIDOMAIN),
+                             c("USUBJID", "MISTRESC","MISEV","MISPEC")]
+           #Add to CompileData
+           MIData <- rbind(MIData, MBD)
+         }
+         #MAKE NA Sev's a 0
+         MIData$MISEV = MIData$MISEV %>% replace_na("0")
+         MIData <- na.omit(MIData)
        }
        MIData$MISTRESC <- toupper(MIData$MISTRESC)
        #Convert Severity
@@ -995,9 +1141,25 @@ server <- shinyServer(function(input, output, session) {
        OrganWeights <- rbind(OrganWeights,Dog5492$om[Dog5492idx,c("USUBJID", "OMSPEC", "OMSTRESN","OMTEST")],
                              Rat6576$om[Rat6576idx,c("USUBJID", "OMSPEC", "OMSTRESN","OMTEST")],
                              Rat5492$om[Rat5492idx, c("USUBJID", "OMSPEC", "OMSTRESN","OMTEST")])
-       OrganWeights <- OrganWeights[which(OrganWeights$OMTEST == "Weight"), c("USUBJID", "OMSPEC", "OMSTRESN")]
+       } else {
+         OrganWeights <- data.frame(USUBJID = NA,OMSPEC = NA,OMSTRESN = NA, OMTEST = NA)
+         for (nj in 1:numstudies){
+           Name <- paste0('SENDStudy',as.character(nj))
+           #Pull idx of the brain and desired organs
+           Studyidx <- str_which(get(Name)$om$OMSPEC, "BRAIN")
+           for (i in 1:length(Organ)){
+             Studyidx <- append(Studyidx, str_which(get(Name)$om$OMSPEC, Organ[i]))
+           }
+           #Pull relevant OM Data
+           OMD <- get(Name)$om[Studyidx,c("USUBJID", "OMSPEC", "OMSTRESN","OMTEST")]
+           #Add to CompileData
+           OrganWeights <- rbind(OrganWeights, OMD)
+         }
+         OrganWeights <- na.omit(OrganWeights)
        }
-       CompileData <- merge(CompileData, OrganWeights, by = "USUBJID") 
+       OrganWeights <- OrganWeights[which(OrganWeights$OMTEST == "Weight"), c("USUBJID", "OMSPEC", "OMSTRESN")]
+       CompileData <- merge(CompileData, OrganWeights, by = "USUBJID", all.x = T) 
+       CompileData <- CompileData[which(is.na(CompileData$OMSPEC) == FALSE),]
        
       #Combine Levels on Findings
       MIData$MISTRESC <- as.factor(MIData$MISTRESC)
@@ -1089,6 +1251,11 @@ server <- shinyServer(function(input, output, session) {
             LBData <- LBData[-a,] 
           }
         } 
+      } else {
+        # Find Levels of Study
+        ARMS <- levels(LBData$ARMCD)
+        ARMS <- gsub("R","",ARMS)
+        levels(LBData$ARMCD) <- ARMS
       }
       levels(LBData$ARMCD) <- doseRanks
       if (length(LBData$LBTESTCD) == 0){
@@ -1131,7 +1298,7 @@ server <- shinyServer(function(input, output, session) {
   ########## MI Data ###############
       
       #Merge Severity MI Data into Compile Data
-      MIIncidencePRIME <-MIData[,c(1,2,4)] ##Keeps MISPEC
+      MIIncidencePRIME <-MIData[,c(1,2,4)]
       Severity <- merge(MIData, CompileData[,c("USUBJID", "StudyID", "Species", "ARMCD")])
       MIData <- dcast(MIData, USUBJID ~ MISTRESC, value.var = "MISEV")
       MIData[is.na(MIData)] <- "0" #Fill NAs with Zero
@@ -1222,8 +1389,7 @@ server <- shinyServer(function(input, output, session) {
       CompileDataSummary[[Gender]] <- CompileData
   ####################################### Scoring Portion #########################
 
-      #Score the BW Domain based on breaks
-      ScoredData <- CompileData[,1:6]
+      ScoredData <- CompileData[,1:6] # On Local COmpile data is empty here D:
       ScoredData$BWzScore <- abs(CompileData$BWzScore)
       for (Study in unique(ScoredData$StudyID)){
         ScoredData[ScoredData$StudyID == Study,] %<>%
@@ -1252,7 +1418,7 @@ server <- shinyServer(function(input, output, session) {
         ScoredData$OMSPEC <- CompileData$OMSPEC
         #Removes Scoring if there are no LB Tests
         colIndex <- which(colnames(CompileData) == "BWRatiozScore")
-        print(paste0("No LB TESTS SELECTED in ", organSystem))
+        print(paste0("No LB TESTS SELECTED in ", organSystem)) 
       } else {
         for (i in colIndex) {
           colName <- colnames(CompileData)[i]
@@ -1269,12 +1435,12 @@ server <- shinyServer(function(input, output, session) {
           }
         }
       }
-      IncidenceOverideCount <- 0
+      IncidenceOverideCount <- 0 
       #Score MI Data
       colIndex <- seq((colIndex[length(colIndex)]+1), ncol(CompileData))
       for (i in colIndex){
         colName <- colnames(CompileData)[i]
-        ScoredData[[colName]] <- NA
+        ScoredData[[colName]] <- NA 
         #Score Severity
         x <- ifelse(CompileData[,i]>3,3,
                     ifelse(CompileData[,i]==3,2,
@@ -1318,8 +1484,10 @@ server <- shinyServer(function(input, output, session) {
 
       # #Remove Extra Lines for Brain OM with added catch for Reproductive F to ensure that it Dog 6576 data remains
       if (Gender == 'F' & organSystem == "REPRODUCTIVE"){
+        if (dataSource == "BioCelerate"){
         ScoredData$OMSPEC[which(ScoredData$StudyID == 'Dog 6576')] <- "OVARY"
         CompileData$OMSPEC[which(CompileData$StudyID == 'Dog 6576')] <- "OVARY"
+        }
       }
       #Check if there is more than just OMSPEC of Brain per Study ID
       Rmxidx <- list()
@@ -1422,11 +1590,27 @@ server <- shinyServer(function(input, output, session) {
         }
       }
       #Clear for Reset
-      CompileData <- CompileData[,c("USUBJID","StudyID", "Species", "SEX", "ARMCD", "BrainRatiozScore", "BWSTRESN", "BWzScore")]
+      CompileData <- CompileDataPrime
     } 
     Results <- as.data.frame(summaryResults)
+    if (dataSource == "BioCelerate"){
       rownames(Results) <- c(paste0("Dog 6576 ", Gender), paste0("Dog 5492 ", Gender),
-                             paste0("Rat 6576 ", Gender), paste0("Rat 5492 ", Gender))
+                             paste0("Rat 6576 ", Gender), paste0("Rat 5492 ", Gender)) 
+    } else {
+      # Generate list of names from order loaded
+      StudyNames <- list()
+      for (nj in 1:numstudies){
+        Name <- paste0('SENDStudy',as.character(nj))
+        #Pull all of the relevant DM Data
+        Species <- get(Name)$ts$TSVAL[which(get(Name)$ts$TSPARMCD == "SPECIES")]
+        TRTName <- get(Name)$ts$TSVAL[which(get(Name)$ts$TSPARMCD == "TRT")]
+        StudyID <- paste0(Species, " ", TRTName, " ", Gender)
+        #Store Study ID
+        StudyNames <- append(StudyNames, StudyID)
+      }
+      #replace Results rownames with generated StudyIDs
+      rownames(Results) <- StudyNames
+    }
     summaryData <- rbind(summaryData,Results)
   }
   summaryData <- cbind(summaryData, setNames( lapply(c(organSystems, 'BW'), function(x) x= NA),c(organSystems, 'BW')  ))
@@ -1443,29 +1627,31 @@ server <- shinyServer(function(input, output, session) {
   rownames(summaryData)[which(rownames(summaryData) =="ENDOCRINE.SERUM")] <- "ENDOCRINE.LB.SERUM"
   rownames(summaryData)[which(rownames(summaryData) =="HEMATOPOIETIC.WHOLE.BLOOD")] <- "HEMATOPOIETIC.LB.WHOLE.BLOOD"
 
-  #Edit Data to Account for chosen studies
-  #Summary Data
-  colschosen <- which(word(colnames(summaryData),1,2) %in% chosenstudies)
-  summaryData <- summaryData[,colschosen]
-  #BW and FW 
-  BodyWeight <- BodyWeight[which(BodyWeight$StudyID %in% chosenstudies),]
-  FWData$StudyID <- paste0(FWData$Species," ",FWData$Compound)
-  FWData <- FWData[which(FWData$StudyID %in% chosenstudies),]
-  CompileData <- CompileData[which(CompileData$StudyID %in% chosenstudies),]
-  #OM, LB, and MI
-  for (sex in SEX){
-    BodyWeightSummary[[sex]] <- BodyWeightSummary[[sex]][which(BodyWeightSummary[[sex]]$StudyID %in% chosenstudies),]
-    FWDataSummary[[sex]]$StudyID <- paste0(FWDataSummary[[sex]]$Species," ",FWDataSummary[[sex]]$Compound)
-    FWDataSummary[[sex]] <- FWDataSummary[[sex]][which(FWDataSummary[[sex]]$StudyID %in% chosenstudies),]
-    CompileDataSummary[[sex]] <- CompileDataSummary[[sex]][which(CompileDataSummary[[sex]]$StudyID %in% chosenstudies),]
-    for (ORGAN in organSystems){
-      OMresults[[ORGAN]][[sex]] <- OMresults[[ORGAN]][[sex]][which(OMresults[[ORGAN]][[sex]]$StudyID %in% chosenstudies),]
-      LBresults[[ORGAN]][[sex]] <- LBresults[[ORGAN]][[sex]][which(LBresults[[ORGAN]][[sex]]$StudyID %in% chosenstudies),]
-      #Fix MI to loop through all possible organs for MIResults to preoperly remove studies
-      for ( MI in names(MIresults[[ORGAN]][[sex]])){
-      MIresults[[ORGAN]][[sex]][[MI]] <- MIresults[[ORGAN]][[sex]][[MI]][which(word(MIresults[[ORGAN]][[sex]][[MI]]$Treatment,1,2) %in% chosenstudies),]
-      }
-    } 
+  #Edit Data to Account for chosen studies in BioCelerate 
+  if (dataSource == "BioCelerate"){
+    #Summary Data
+    colschosen <- which(word(colnames(summaryData),1,2) %in% chosenstudies)
+    summaryData <- summaryData[,colschosen]
+    #BW and FW 
+    BodyWeight <- BodyWeight[which(BodyWeight$StudyID %in% chosenstudies),]
+    FWData$StudyID <- paste0(FWData$Species," ",FWData$Compound)
+    FWData <- FWData[which(FWData$StudyID %in% chosenstudies),]
+    CompileData <- CompileData[which(CompileData$StudyID %in% chosenstudies),]
+    #OM, LB, and MI
+    for (sex in SEX){
+      BodyWeightSummary[[sex]] <- BodyWeightSummary[[sex]][which(BodyWeightSummary[[sex]]$StudyID %in% chosenstudies),]
+      FWDataSummary[[sex]]$StudyID <- paste0(FWDataSummary[[sex]]$Species," ",FWDataSummary[[sex]]$Compound)
+      FWDataSummary[[sex]] <- FWDataSummary[[sex]][which(FWDataSummary[[sex]]$StudyID %in% chosenstudies),]
+      CompileDataSummary[[sex]] <- CompileDataSummary[[sex]][which(CompileDataSummary[[sex]]$StudyID %in% chosenstudies),]
+      for (ORGAN in organSystems){
+        OMresults[[ORGAN]][[sex]] <- OMresults[[ORGAN]][[sex]][which(OMresults[[ORGAN]][[sex]]$StudyID %in% chosenstudies),]
+        LBresults[[ORGAN]][[sex]] <- LBresults[[ORGAN]][[sex]][which(LBresults[[ORGAN]][[sex]]$StudyID %in% chosenstudies),]
+        #Fix MI to loop through all possible organs for MIResults to preoperly remove studies
+        for ( MI in names(MIresults[[ORGAN]][[sex]])){
+          MIresults[[ORGAN]][[sex]][[MI]] <- MIresults[[ORGAN]][[sex]][[MI]][which(word(MIresults[[ORGAN]][[sex]][[MI]]$Treatment,1,2) %in% chosenstudies),]
+        }
+      } 
+    }
   }
   print('DONE')
   
@@ -1722,6 +1908,41 @@ server <- shinyServer(function(input, output, session) {
      }
   },height = plotHeight$X)
   
+  output$HMIplotLympMand <- renderPlot({ #HEMATOPOIETIC LYMPH NODE, MANDIBULAR MI PLOT
+    if (length(SEX) == 2){
+      if ("LYMPH NODE, MANDIBULAR" %in% MITESTCDlist$HEMATOPOIETIC){
+        HM <- makeMIplot(MIresults,'HEMATOPOIETIC',"LYMPH NODE, MANDIBULAR",input$dose,'M',
+                         input$HMIClustY, input$HMIClustX)
+        HM2 <- makeMIplot(MIresults,'HEMATOPOIETIC',"LYMPH NODE, MANDIBULAR",input$dose,'F',
+                          input$HMIClustY, input$HMIClustX)
+        print(grid.arrange(HM,HM2))
+      }
+    } else {
+      if ("LYMPH NODE, MANDIBULAR" %in%  MITESTCDlist$HEMATOPOIETIC){
+        HMT <- makeMIplot(MIresults,'HEMATOPOIETIC',"LYMPH NODE, MANDIBULAR",input$dose,SEX,
+                          input$HMIClustY, input$HMIClustX)
+        print(HMT)
+      }
+    }
+  },height = plotHeight$X)
+  output$HMIplotLympMESEN <- renderPlot({ #HEMATOPOIETIC LYMPH NODE, MESENTERIC MI PLOT
+    if (length(SEX) == 2){
+      if ("LYMPH NODE, MESENTERIC" %in% MITESTCDlist$HEMATOPOIETIC){
+        HM <- makeMIplot(MIresults,'HEMATOPOIETIC',"LYMPH NODE, MESENTERIC",input$dose,'M',
+                         input$HMIClustY, input$HMIClustX)
+        HM2 <- makeMIplot(MIresults,'HEMATOPOIETIC',"LYMPH NODE, MESENTERIC",input$dose,'F',
+                          input$HMIClustY, input$HMIClustX)
+        print(grid.arrange(HM,HM2))
+      }
+    } else {
+      if ("LYMPH NODE, MESENTERIC" %in%  MITESTCDlist$HEMATOPOIETIC){
+        HMT <- makeMIplot(MIresults,'HEMATOPOIETIC',"LYMPH NODE, MESENTERIC",input$dose,SEX,
+                          input$HMIClustY, input$HMIClustX)
+        print(HMT)
+      }
+    }
+  },height = plotHeight$X)
+  
   output$EMIplot <- renderPlot({ #ENDOCRINE GLAND, ADRENAL MI PLOT
      if (length(SEX) == 2){
         if ("GLAND, ADRENAL" %in%  MITESTCDlist$ENDOCRINE){
@@ -1919,6 +2140,12 @@ server <- shinyServer(function(input, output, session) {
   output$HMIplotreactive3 <- renderUI({
      plotOutput('HMIplotThymus', height = plotHeight$X)
   })
+  output$HMIplotreactive4<- renderUI({
+    plotOutput('HMIplotLympMand', height = plotHeight$X)
+  })
+  output$HMIplotreactive5<- renderUI({
+    plotOutput('HMIplotLympMESEN', height = plotHeight$X)
+  })
   
   output$EMIplotreactive <- renderUI({
     plotOutput('EMIplot', height = plotHeight$X)
@@ -2021,7 +2248,9 @@ server <- shinyServer(function(input, output, session) {
                                                                         'WHOLE BLOOD | MPV' = 'WHOLE BLOOD | MPV'), stselected = TRUE)),
            'Histopathology(MI)' = structure(list('BONE MARROW' = "BONE MARROW",
                                                  'SPLEEN' = 'SPLEEN',
-                                                 'THYMUS' = 'THYMUS'), stselected = TRUE),
+                                                 'THYMUS' = 'THYMUS',
+                                                 "LYMPH NODE, MANDIBULAR" = "LYMPH NODE, MANDIBULAR",
+                                                 "LYMPH NODE, MESENTERIC" = "LYMPH NODE, MESENTERIC"), stselected = TRUE),
            'Organ Weight(OM)' = structure(list('SPLEEN' = 'SPLEEN',
                                                'THYMUS' = 'THYMUS'), stselected = TRUE)
         ),
