@@ -6,7 +6,7 @@
 #* Ability to load different studies > In-Progress SB
     #* Added UI Elements for Selection of Local and Database Load (Done - SB)
     #* Add Checks for Loaded Data to be Repeat-Dose Studies of Proper Dosing Regimen (4 doses total) (Done - SB)
-    #* Add automated color and line style for different animals and treatments between studies
+    #* Add automated color and line style for different animals and treatments between studies (Done - SB)
     #* Add non-Biocelerate scoring and data normalization to handle more than 4 studies 
          #* Currently errors out on ln 1622 - 1639 with more than 4 studies due to aggregation errors
     #* Edit Data Loading and Cleaning Sections to be more generalized for other studies
