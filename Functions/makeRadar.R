@@ -43,14 +43,36 @@ makeRadar <- function(summaryData, organSystem, Gender) {
   
   #Create Group Names
   GroupNames <-str_replace(rownames(Data)[3:nrow(Data)],"\\.", " ")
+  #Grab Num Species/Compounds from GroupNames
+  Species <- word(GroupNames,1)
+  Compounds <- substr(word(GroupNames,2),1, nchar(word(GroupNames,2))-2)
   
-  #Set Colors for Radar Plot >> Currently Hardcoded for BioCelerate Order
-  colors_border <- c(rgb(0.2,0.5,0.5,0.9), rgb(0.8,0.2,0.5,0.9), rgb(0.2,0.5,0.5,0.9), 
-                     rgb(0.8,0.2,0.5,0.9))
-  #Set Shape for Radar >> Currently Hardcoded for BioCelerate Order
-  shapes_line <- c(1,1,2,2)
-  shapes_point <- c(16,16,17,17)
-  legend_point <- c(20,20,17,17)
+  #Set Colors for Radar Plot using Compounds
+  ColorOptions <- c(rgb(0.8,0.2,0.5,0.9),rgb(0.2,0.5,0.5,0.9),rgb(0.3,0.7,0.9,0.9), rgb(0.1,0.2,0.3,0.9), rgb(0.1,0.8,0.5,0.9))
+  i <- 1
+  for (Compound in  unique(Compounds)){
+    Compounds <- str_replace_all(Compounds,Compound, ColorOptions[i])
+    i <- i+1
+  }
+  colors_border <- Compounds
+  
+  #Set Shape for Radar using Species
+  shapes_line_options <- c('1','2','3','4')
+  shapes_point_options <- c('16','17','15','18')
+  legend_point_options <- c('20','17','15','18')
+  SpeciesFormat <- data.frame(shapes = Species,
+                                 points = Species,
+                                 legends = Species)
+  j <- 1
+  for (animal in unique(Species)){
+    SpeciesFormat$shapes <- str_replace_all(SpeciesFormat$shapes, animal, shapes_line_options[j])
+    SpeciesFormat$points <- str_replace_all(SpeciesFormat$points, animal, shapes_line_options[j])
+    SpeciesFormat$legends <- str_replace_all(SpeciesFormat$legends, animal, shapes_line_options[j])
+    j <- j+1
+  }
+  shapes_line <- as.numeric(SpeciesFormat$shapes)
+  shapes_point <- as.numeric(SpeciesFormat$points)
+  legend_point <- as.numeric(SpeciesFormat$legends)
   
   #Generate Radar plot
   par(xpd= TRUE,mar = c(1,1,1,1), oma = c(1,1,1,1))
