@@ -2,11 +2,13 @@
 #of SEND Data
 
 #Need to do:
-#* Add Detailed Scoring Controls (i.e. user can determine scoring ranges)
-#* Ability to load different studies > In progress (SB)
-    #* Added UI Elements for Selection of Local and Database Load (Done)
-    #* Add Checks for Loaded Data to be Repeat-Dose Studies of Proper Dosing Regimen (4 doses total) (Done)
+#* Add Detailed Scoring Controls (i.e. user can determine scoring ranges) > In-Progress GM
+#* Ability to load different studies > In-Progress SB
+    #* Added UI Elements for Selection of Local and Database Load (Done - SB)
+    #* Add Checks for Loaded Data to be Repeat-Dose Studies of Proper Dosing Regimen (4 doses total) (Done - SB)
+    #* Add automated color and line style for different animals and treatments between studies
     #* Add non-Biocelerate scoring and data normalization to handle more than 4 studies 
+         #* Currently errors out on ln 1622 - 1639 with more than 4 studies due to aggregation errors
     #* Edit Data Loading and Cleaning Sections to be more generalized for other studies
     #* 
 #* 
@@ -465,8 +467,10 @@ server <- shinyServer(function(input, output, session) {
                                      queryParams = DatabaseStudies[j])
          ta <-sendigR::genericQuery(dbtoken, queryString = "SELECT * FROM TA WHERE STUDYID = (:1)",
                                     queryParams = DatabaseStudies[j])
+         pooldef <- sendigR::genericQuery(dbtoken, queryString = "SELECT * FROM POOLDEF WHERE STUDYID = (:1)",
+                                          queryParams = DatabaseStudies[j])
          #Combine into list of assigned name
-         assign(Name, list('bw' = bw, 'dm' = dm,'ex' = ex, 'fw' = fw,
+         assign(Name, list('bw' = bw, 'dm' = dm,'ex' = ex, 'fw' = fw, 'pooldef'=pooldef,
                            'lb' = lb, 'mi' = mi, 'om'=om, 'ts'=ts, 'ta'=ta))
          print(paste0(Name, " = ", input$DatabaseStudies[j]))
        }  
@@ -743,7 +747,7 @@ server <- shinyServer(function(input, output, session) {
                                   c("STUDYID", "USUBJID", "BWSTRESN","VISITDY")]
          } else {
            #Change BWDY to VISIDY
-           StudyInitialWeight <- get(Name)$bw[which((get(Name)$bw$VISITDY <= 1)),
+           StudyInitialWeight <- get(Name)$bw[which((get(Name)$bw$BWDY <= 1)),
                                               c("STUDYID", "USUBJID", "BWSTRESN","BWDY")]
            StudyBodyWeight <- get(Name)$bw[which(get(Name)$bw$BWTESTCD == "BW"),
                                            c("STUDYID", "USUBJID", "BWSTRESN","BWDY")]
@@ -804,6 +808,7 @@ server <- shinyServer(function(input, output, session) {
      } else {
        TermBodyWeight$BWSTRESN <- as.numeric(TermBodyWeight$BWSTRESN)
        InitialWeight$BWSTRESN <- as.numeric(InitialWeight$BWSTRESN)
+       BodyWeight$BWSTRESN <- as.numeric(BodyWeight$BWSTRESN)
      }
      CompileData <- merge(CompileData, TermBodyWeight, by = "USUBJID")
      #Subtract Starting Weight
@@ -960,7 +965,9 @@ server <- shinyServer(function(input, output, session) {
            if (Species %in% c("RAT","Rat","rat")){
              if ("POOLID" %in%  colnames(get(Name)$fw)){
              PoolFoodData <- merge(get(Name)$pooldef,
-                               get(Name)$fw[,c("POOLID","FWDY","FWSTRESN")], by = "POOLID")
+                               get(Name)$fw[,c("POOLID","FWDY","FWSTRESN")],
+                               allow.cartesian = TRUE,
+                               by = "POOLID")
              } else { #Accounting for studies that don't pool rats
                PoolFoodData <- get(Name)$fw[,c("USUBJID","FWDY","FWSTRESN")]
              }
@@ -985,10 +992,15 @@ server <- shinyServer(function(input, output, session) {
            }
          }
          #Remove formatting
+         SpeciesFood$FWSTRESN <- as.numeric(SpeciesFood$FWSTRESN)
          SpeciesFood <- na.omit(SpeciesFood)
          #Take Average consumption of Pre-Study Animals
          PreStudy <- SpeciesFood[which(SpeciesFood$FWDY <=0),]
          MeanFC <- mean(PreStudy$FWSTRESN, na.rm = TRUE)
+         if (MeanFC == 0){ #IF there is no prestudy only use the first day
+           PreStudy <- SpeciesFood[which(SpeciesFood$FWDY <=1),]
+           MeanFC <- mean(PreStudy$FWSTRESN, na.rm = TRUE)
+         }
          #Normalize FWStresn for comparisson using Average
          SpeciesFood$FWSTRESN <- (SpeciesFood$FWSTRESN/MeanFC)
          ##Make DataFrame per Species
@@ -1026,9 +1038,26 @@ server <- shinyServer(function(input, output, session) {
            Name <- paste0('SENDStudy',as.character(nj))
            #Pull all of the relevant LB Data
            if ("LBDY" %in% colnames(get(Name)$lb) == TRUE){
-             LBD <- get(Name)$lb[which((get(Name)$lb$VISITDY >= 1)),
+             LBD <- get(Name)$lb[which((get(Name)$lb$LBDY >= 1)),
                                  c("USUBJID","LBSPEC","LBTESTCD","LBSTRESN", "LBDY")]
              colnames(LBD) <- c("USUBJID","LBSPEC","LBTESTCD","LBSTRESN", "VISITDY")
+             if (all(is.na(LBD$LBSPEC)) == TRUE){
+               #Convert LBCAT to LBSPEC if no LBSPEC
+               LBD$LBSPEC <- get(Name)$lb[which((get(Name)$lb$LBDY >= 1)),
+                                         c("LBCAT")]
+               if (c("HEMATOLOGY", "Hematology","hematology") %in% levels(LBD$LBSPEC)){
+                 levels(LBD$LBSPEC)[match(c("HEMATOLOGY", "Hematology","hematology"),
+                                          levels(LBD$LBSPEC))] <- "WHOLE BLOOD"
+               }
+               if (c("CLINICAL CHEMISTRY","Clinical Chemistry") %in% levels(LBD$LBSPEC)){
+                 levels(LBD$LBSPEC)[match(c("CLINICAL CHEMISTRY","Clinical Chemistry"),
+                                          levels(LBD$LBSPEC))] <- "SERUM" 
+               }
+               if (c("URINALYSIS","Urinalysis") %in% levels(LBD$LBSPEC)){
+                 levels(LBD$LBSPEC)[match(c("URINALYSIS","Urinalysis"),
+                                          levels(LBD$LBSPEC))] <- "URINE" 
+               }
+             }
            } else {
              LBD <- get(Name)$lb[which((get(Name)$lb$VISITDY >= 1)),
                                  c("USUBJID","LBSPEC","LBTESTCD","LBSTRESN", "VISITDY")] 
@@ -1093,9 +1122,9 @@ server <- shinyServer(function(input, output, session) {
                               "MISPEC" = NA)
          for (nj in 1:numstudies){
            Name <- paste0('SENDStudy',as.character(nj))
-           #Pull all of the relevant DM Data
-           MBD <- get(Name)$mi[which( get(Name)$mi$MISPEC %in% MIDOMAIN),
-                             c("USUBJID", "MISTRESC","MISEV","MISPEC")]
+           #Pull all of the relevant MI Data using Grepl for language variances (such as added (s))
+           MBD <- get(Name)$mi[which(grepl(MIDOMAIN, get(Name)$mi$MISPEC) == TRUE),
+                               c("USUBJID", "MISTRESC","MISEV","MISPEC")]
            #Add to CompileData
            MIData <- rbind(MIData, MBD)
          }
@@ -1227,7 +1256,7 @@ server <- shinyServer(function(input, output, session) {
       ###### LB GRAPHS #######################################################
       
       if (nrow(LBData) == 0){
-        #Removes empty LBData from zScore Calcuation as it cannot calcluate
+        #Removes empty LBData from zScore Calcuation as it cannot calculate
       } else {
       #Calculate Z Score per LBTESTCD
       LBData <- merge(LBData, unique(AllData[,c("USUBJID", "ARMCD","StudyID","SEX")]), by = "USUBJID")
