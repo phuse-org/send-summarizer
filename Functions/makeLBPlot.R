@@ -45,7 +45,7 @@ makeLBplot <- function(LBresults, OrganSystem, sources, Dose, Gender){
   qr <- ggplot(LBplotData,aes(x = zscore, y = LBTESTCD, group = LBTESTCD, color = Compound, shape = Species)) +
     geom_rect(aes(ymin= -Inf, ymax=Inf,xmin=-1,xmax=1), color = 'gray', fill = "gray", alpha = .05) +
     geom_point(size =5) +
-    scale_color_manual(values=c(rgb(0.8,0.2,0.5,0.9),rgb(0.2,0.5,0.5,0.9))) +
+    scale_color_manual(values=c(rgb(0.8,0.2,0.5,0.9),rgb(0.2,0.5,0.5,0.9),rgb(0.3,0.7,0.9,0.9), rgb(0.1,0.2,0.3,0.9), rgb(0.1,0.8,0.5,0.9))) +
     ggtitle(paste0(OrganSystem, " ", testgroup, ' zScore', " - ", Dose, " ",  Gender)) +
     geom_point(stat = 'summary', color = 'black', shape = '|', size = 10) + scale_x_continuous(limits = c(-4,4))+
     theme_light()
