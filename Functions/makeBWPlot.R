@@ -85,7 +85,7 @@ makeBWplot <- function(BodyWeight,BWMethod, BWMetric, Dose, Gender){
       BWplotData <- aggregate(zScoreModel ~ VISITDY+ Species + ARMCD+Compound, FUN = mean, data = BWplotData)
       q <- ggplot(BWplotData, aes(x = VISITDY, y = zScoreModel, color = Compound, shape = Species))+
         geom_point() + geom_line() + ylab(paste0(BWMetric, " of Weight")) + 
-        scale_color_manual(values=c(rgb(0.8,0.2,0.5,0.9),rgb(0.2,0.5,0.5,0.9))) +
+        scale_color_manual(values=c(rgb(0.8,0.2,0.5,0.9),rgb(0.2,0.5,0.5,0.9), rgb(0.3,0.7,0.9,0.9), rgb(0.1,0.2,0.3,0.9), rgb(0.1,0.8,0.5,0.9))) +
         scale_x_continuous(breaks = round(seq(min(BWplotData$VISITDY), max(BWplotData$VISITDY), by = 5)))+
         ggtitle(paste0("Baseline Subtracted BW - ", Dose, " ", Gender)) 
       return (q)
@@ -93,7 +93,7 @@ makeBWplot <- function(BodyWeight,BWMethod, BWMetric, Dose, Gender){
       BWplotData <- aggregate(BaselinePercentChange ~ VISITDY+ Species + ARMCD+Compound, FUN = mean, data = BWplotData)
       q <- ggplot(BWplotData, aes(x = VISITDY, y = BaselinePercentChange, color = Compound, shape = Species))+
         geom_point() + geom_line() + ylab(paste0(BWMetric, " of Weight")) + 
-        scale_color_manual(values=c(rgb(0.8,0.2,0.5,0.9),rgb(0.2,0.5,0.5,0.9))) +
+        scale_color_manual(values=c(rgb(0.8,0.2,0.5,0.9),rgb(0.2,0.5,0.5,0.9), rgb(0.3,0.7,0.9,0.9), rgb(0.1,0.2,0.3,0.9), rgb(0.1,0.8,0.5,0.9))) +
         scale_x_continuous(breaks = round(seq(min(BWplotData$VISITDY), max(BWplotData$VISITDY), by = 5)))+
         ggtitle(paste0("Baseline Subtracted BW - ", Dose, " ", Gender)) 
       return (q)
@@ -106,7 +106,7 @@ makeBWplot <- function(BodyWeight,BWMethod, BWMetric, Dose, Gender){
         guides(colour = guide_legend(override.aes = list(shape = NA))) +
         geom_col(position = 'dodge2') + ylab(paste0(BWMetric, " of Weight")) +
         ggtitle(paste0("TermBW - ", Dose, " ", Gender)) +
-        scale_fill_manual(values = c(rgb(0.8,0.2,0.5,0.9),rgb(0.2,0.5,0.5,0.9))) +
+        scale_fill_manual(values = c(rgb(0.8,0.2,0.5,0.9),rgb(0.2,0.5,0.5,0.9), rgb(0.3,0.7,0.9,0.9), rgb(0.1,0.2,0.3,0.9), rgb(0.1,0.8,0.5,0.9))) +
         theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
       return (q)
       
@@ -116,7 +116,7 @@ makeBWplot <- function(BodyWeight,BWMethod, BWMetric, Dose, Gender){
         guides(colour = guide_legend(override.aes = list(shape = NA))) +
         geom_col(position = 'dodge2') + ylab(paste0(BWMetric, " of Weight")) +
         ggtitle(paste0("TermBW - ", Dose, " ", Gender)) +
-        scale_fill_manual(values = c(rgb(0.8,0.2,0.5,0.9),rgb(0.2,0.5,0.5,0.9))) +
+        scale_fill_manual(values = c(rgb(0.8,0.2,0.5,0.9),rgb(0.2,0.5,0.5,0.9), rgb(0.3,0.7,0.9,0.9), rgb(0.1,0.2,0.3,0.9), rgb(0.1,0.8,0.5,0.9))) +
         theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
       return (q)
       
