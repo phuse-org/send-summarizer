@@ -7,8 +7,8 @@
     #* Added UI Elements for Selection of Local and Database Load (Done - SB)
     #* Add Checks for Loaded Data to be Repeat-Dose Studies of Proper Dosing Regimen (4 doses total) (Done - SB)
     #* Add automated color and line style for different animals and treatments between studies (Done - SB)
-    #* Add non-Biocelerate scoring and data normalization to handle more than 4 studies 
-         #* Currently errors out on ln 1622 - 1639 with more than 4 studies due to aggregation errors
+    #* Add non-Biocelerate scoring and data normalization to handle more than 4 studies (Done - SB)
+    #* Fix problem where studies can have same "STUDYID" if they have same species and treatment?!
     #* Edit Data Loading and Cleaning Sections to be more generalized for other studies
     #* 
 #* 
@@ -58,22 +58,22 @@ defaultVal <- 350
 SEX <- 'M'
 
 #Database Load
-# dbtoken <- sendigR::initEnvironment(dbType = 'sqlite',
-#                                     dbPath = paste0(homePath,"/DataCentral-2023-03-30.db"),
-#                                     dbCreate = FALSE)
-# RptDoseStudyID <- sendigR::getStudiesSDESIGN(dbtoken,studyDesignFilter = "PARALLEL")
-# MIStudyIDS <- sendigR::genericQuery(dbtoken, "SELECT STUDYID FROM MI") #limiting to MI because it is the least likely to be filled
-# dbStudyIDs <- intersect(RptDoseStudyID$STUDYID,MIStudyIDS$STUDYID)
-# rm(MIStudyIDS) #Freeing Memory
-# rm(RptDoseStudyID) #Freeing Memory
-# dbStudyIDS <- unique(dbStudyIDs)
-# #Pull INDs and Study Titles for those StudyIDs
-# APPID <- sendigR::genericQuery(dbtoken, "SELECT * FROM ID WHERE STUDYID in (:1)", dbStudyIDs)
-# STITLE <- sendigR::genericQuery(dbtoken, 'SELECT STUDYID, TSVAL FROM TS WHERE TSPARMCD = "STITLE" and STUDYID in (:1)', dbStudyIDs)
-# dbStudys <- merge(APPID, STITLE, by = "STUDYID")
-# dbStudys$CombinedName <- paste0(dbStudys$APPID,"-",dbStudys$STUDYID,": ",dbStudys$TSVAL)
-# rm(APPID) #Freeing Memory
-# rm(STITLE) #Freeing Memory
+dbtoken <- sendigR::initEnvironment(dbType = 'sqlite',
+                                    dbPath = paste0(homePath,"/DataCentral-2023-03-30.db"),
+                                    dbCreate = FALSE)
+RptDoseStudyID <- sendigR::getStudiesSDESIGN(dbtoken,studyDesignFilter = "PARALLEL")
+MIStudyIDS <- sendigR::genericQuery(dbtoken, "SELECT STUDYID FROM MI") #limiting to MI because it is the least likely to be filled
+dbStudyIDs <- intersect(RptDoseStudyID$STUDYID,MIStudyIDS$STUDYID)
+rm(MIStudyIDS) #Freeing Memory
+rm(RptDoseStudyID) #Freeing Memory
+dbStudyIDS <- unique(dbStudyIDs)
+#Pull INDs and Study Titles for those StudyIDs
+APPID <- sendigR::genericQuery(dbtoken, "SELECT * FROM ID WHERE STUDYID in (:1)", dbStudyIDs)
+STITLE <- sendigR::genericQuery(dbtoken, 'SELECT STUDYID, TSVAL FROM TS WHERE TSPARMCD = "STITLE" and STUDYID in (:1)', dbStudyIDs)
+dbStudys <- merge(APPID, STITLE, by = "STUDYID")
+dbStudys$CombinedName <- paste0(dbStudys$APPID,"-",dbStudys$STUDYID,": ",dbStudys$TSVAL)
+rm(APPID) #Freeing Memory
+rm(STITLE) #Freeing Memory
 
 
 #Load Relevant Functions
@@ -645,6 +645,8 @@ server <- shinyServer(function(input, output, session) {
                               USUBJID = get(Name)$dm$USUBJID,
                               SEX = get(Name)$dm$SEX,
                               ARMCD = get(Name)$dm$ARMCD)
+         #Remove T from ARMCD for groups that include it for "treatment"
+         DMData$ARMCD <- gsub('T','',DMData$ARMCD)
          #Add to CompileData
          CompileData <- rbind(CompileData, DMData)
        }
@@ -678,6 +680,7 @@ server <- shinyServer(function(input, output, session) {
      #Remove Recovery Animals and Recode Treatment Ranks
      AllData <- CompileData
      CompileData <- CompileData[!str_detect(CompileData$ARMCD, "R"),]
+     CompileData$ARMCD <- as.numeric(CompileData$ARMCD)
      CompileData$ARMCD <- factor(CompileData$ARMCD)
      if (length(unique(CompileData$ARMCD))>4){
        #error catch for accidental inclusion of other arm numbers
@@ -1284,7 +1287,11 @@ server <- shinyServer(function(input, output, session) {
         # Find Levels of Study
         ARMS <- levels(LBData$ARMCD)
         ARMS <- gsub("R","",ARMS)
-        levels(LBData$ARMCD) <- ARMS
+        levels(LBData$ARMCD) <- ARMS #Remove leading 0s
+        levels(LBData$ARMCD)[levels(LBData$ARMCD) == "01"] <- "1"
+        levels(LBData$ARMCD)[levels(LBData$ARMCD) == "02"] <- "2"
+        levels(LBData$ARMCD)[levels(LBData$ARMCD) == "03"] <- "3"
+        levels(LBData$ARMCD)[levels(LBData$ARMCD) == "04"] <- "4"
       }
       levels(LBData$ARMCD) <- doseRanks
       if (length(LBData$LBTESTCD) == 0){
@@ -1683,6 +1690,7 @@ server <- shinyServer(function(input, output, session) {
     }
   }
   print('DONE')
+  showNotification("Analysis is Done", type = "message")
   
   #Re-Render Plots that Need Data Changes
   output$FWplot <- renderPlot({
@@ -1820,7 +1828,6 @@ server <- shinyServer(function(input, output, session) {
     }
   })
 
-  
   ##Radar Plots ##
      for (i in 1:length(SEX)) { #Overall Summary Radar
         local({
