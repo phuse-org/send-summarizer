@@ -1417,7 +1417,7 @@ server <- shinyServer(function(input, output, session) {
                    "INFILTRATION, MONONUCLEAR CELL" = "INFILTRATE")
       MIplotData$Finding <- str_replace_all(MIplotData$Finding, rep_str)
       #Filter for Parameters
-      MIplotData$Dose <- word(MIplotData$Treatment,3)
+      MIplotData$Dose <- word(MIplotData$Treatment,-1)
       
       #SAVE MIplotData Per Gender and Dose AND ORGAN
       MIresults[[Group]][[Gender]][[MISPEC]]<- MIplotData
