@@ -1,4 +1,3 @@
-
 #Output Radar plot for Cross-Study Analysis for organSystem or all defined 
 #in CrossStudyGraph_Combined.R or CrossStudyVisualizationApp.R
 
@@ -82,7 +81,7 @@ makeRadar <- function(summaryData, organSystem, Gender) {
                           #Axis Labels
                           axislabcol="grey",vlcex=0.8,caxislabels = seq(0,3,1), seg = 3,
                           #Customize Data Coloring
-                          pty= shapes_point, plty = shapes_line, pcol = colors_border,plwd = 4, 
+                          pty= shapes_point, plty = shapes_line, pcol = colors_border,plwd = 2.5, 
                           title = paste0(Title, " Radar Plot"))
   legend("topright",legend=GroupNames, bty = "n", pch = legend_point,
          col = colors_border, text.col = "black", cex = 0.9, pt.cex = 1.6, y.intersp = 1)
