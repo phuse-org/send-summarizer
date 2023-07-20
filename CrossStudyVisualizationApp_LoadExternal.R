@@ -3,15 +3,9 @@
 
 #Need to do:
 #* Add Detailed Scoring Controls (i.e. user can determine scoring ranges) > In-Progress GM
-#* Ability to load different studies > In-Progress SB
-    #* Added UI Elements for Selection of Local and Database Load (Done - SB)
-    #* Add Checks for Loaded Data to be Repeat-Dose Studies of Proper Dosing Regimen (4 doses total) (Done - SB)
-    #* Add automated color and line style for different animals and treatments between studies (Done - SB)
-    #* Add non-Biocelerate scoring and data normalization to handle more than 4 studies (Done - SB)
-    #* Fix problem where studies can have same "STUDYID" if they have same species and treatment?!
-    #* Edit Data Loading and Cleaning Sections to be more generalized for other studies
-    #* 
-#* 
+      #* Goal is to have this as another blue tab like the "data load" tab 
+#* Ability to load different studies > SB (Done)
+#* Add User control to facet by route, duration, treatment or species
  
 
 #Packages
@@ -638,7 +632,19 @@ server <- shinyServer(function(input, output, session) {
          #Pull all of the relevant DM Data
          Species <- get(Name)$ts$TSVAL[which(get(Name)$ts$TSPARMCD == "SPECIES")]
          TRTName <- get(Name)$ts$TSVAL[which(get(Name)$ts$TSPARMCD == "TRT")]
-         StudyID <- paste0(Species, " ", TRTName)
+         Duration <-get(Name)$ts$TSVAL[which(get(Name)$ts$TSPARMCD == "DOSDUR")]
+         DelMethod <-get(Name)$ts$TSVAL[which(get(Name)$ts$TSPARMCD == "ROUTE")]
+         #Convert duration to days
+         if (grepl("W",Duration) ==TRUE){
+           days <- as.numeric(gsub("\\D","",Duration))*7
+         } else if (grepl("M",Duration) == TRUE){
+           days <- as.numeric(gsub("\\D","",Duration))*7*30
+         } else {
+           days <- as.numeric(gsub("\\D","",Duration))
+         }
+         Duration <- paste0(days,"D")
+         #Make StudyID
+         StudyID <- paste0(Species, " ", TRTName," ",DelMethod," ",Duration)
          SENDStudyLookup <- rbind(SENDStudyLookup, c(Name,StudyID))
          DMData <- data.frame(StudyID = rep(StudyID, length(get(Name)$dm$USUBJID)),
                               Species = rep(Species, length(get(Name)$dm$USUBJID)),
