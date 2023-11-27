@@ -33,31 +33,29 @@
 #' send_cross_study_app()
 #' }
 
-#' @import cowplot
-#' @import devtools
-#' @import dplyr
-#' @import forcats
-#' @import ggpattern
 #' @import ggplot2
-#' @import gridExtra
-#' @import gridGraphics
-#' @import haven
-#' @import Hmisc
-#' @import httr
-#' @import magrittr
-#' @import openxlsx
-#' @import readxl
-#' @import reshape2
-#' @import scales
-#' @import sendigR
 #' @import shiny
-#' @import shinydashboard
-#' @import shinyFiles
-#' @import shinyTree
-#' @import shinyWidgets
-#' @import tools
-#' @importFrom magrittr %>%
+#' @importFrom cowplot ggdraw plot_grid get_legend
+#' @importFrom ggpattern geom_tile_pattern scale_pattern_density_manual scale_pattern_fill_brewer
+#' @importFrom gridExtra grid.arrange
+#' @importFrom Hmisc sasxport.get
+#' @importFrom httr authenticate content GET
+#' @importFrom reshape2 dcast
+#' @importFrom sendigR genericQuery getStudiesSDESIGN initEnvironment
+#' @importFrom shinydashboard dashboardBody dashboardHeader dashboardPage dashboardSidebar menuItem sidebarMenu
+#' @importFrom shinyFiles shinyDirButton shinyDirChoose
+#' @importFrom shinyTree get_selected renderTree shinyTree
+#' @importFrom shinyWidgets actionBttn pickerInput
+#' @importFrom tools file_path_sans_ext
+#' @importFrom magrittr %>% %<>%
+#' @importFrom stringr str_count str_detect str_replace_all str_which word str_match
 #' @importFrom tidyr replace_na
+#' @importFrom dplyr arrange case_when first group_by mutate summarise_at vars lag summarise
+#' @importFrom grDevices rgb
+#' @importFrom stats aggregate lm sd na.omit setNames complete.cases dist hclust
+#' @importFrom fmsb radarchart
+#' @importFrom graphics legend par
+#' @importFrom utils download.file read.csv head
 
 
 
@@ -221,7 +219,7 @@ ui <- dashboardPage (
                                "LD" = "LD"), selected = 'HD'),
                 menuItem('Detailed Control', startExpanded = TRUE,
                          h5('Detailed Test Selection:')
-                         ,shinyTree("tree",checkbox = TRUE),
+                         ,shinyTree::shinyTree("tree",checkbox = TRUE),
                          pickerInput(inputId = "AGGMethod",
                                      label = "Radar Aggregation Method",
                                      c('mean', 'animalMax','endpointMax'),
@@ -532,7 +530,7 @@ server <- shinyServer(function(input, output, session) {
          
          #Find Selected Tests from shinyTree ouput
          TreeSelect <- input$tree
-         SelectedDomainTests <- names(unlist(get_selected(input$tree, format = "slices")))
+         SelectedDomainTests <- names(unlist(shinyTree::get_selected(input$tree, format = "slices")))
          #Check Which Domains are Selected and update organSystems
          systemsselected <- toupper(unlist(strsplit(SelectedDomainTests,"[.]"))) 
          organSystems <- toupper(unique(systemsselected[which(systemsselected %in% organSystems)]))
@@ -541,9 +539,9 @@ server <- shinyServer(function(input, output, session) {
          SelectedOMTests <- SelectedDomainTests[which(grepl("Weight",SelectedDomainTests) == TRUE)]
          SelectedMITests <- SelectedDomainTests[which(grepl("Histopathology",SelectedDomainTests) == TRUE)]
          #Remove all but Lowest Levels of Tree (Values which have 3 '.')
-         SelectedLBTests <- SelectedLBTests[which(str_count(SelectedLBTests, "[.]") == 3)]
-         SelectedMITests <- SelectedMITests[which(str_count(SelectedMITests, "[.]") == 2)]
-         SelectedOMTests <- SelectedOMTests[which(str_count(SelectedOMTests, "[.]") == 2)]
+         SelectedLBTests <- SelectedLBTests[which(stringr::str_count(SelectedLBTests, "[.]") == 3)]
+         SelectedMITests <- SelectedMITests[which(stringr::str_count(SelectedMITests, "[.]") == 2)]
+         SelectedOMTests <- SelectedOMTests[which(stringr::str_count(SelectedOMTests, "[.]") == 2)]
          SelectedLBTests <- as.data.frame(strsplit(SelectedLBTests,"[.]"))
          SelectedMITests <- as.data.frame(strsplit(SelectedMITests,"[.]"))
          SelectedOMTests <- as.data.frame(strsplit(SelectedOMTests,"[.]"))
@@ -717,7 +715,7 @@ server <- shinyServer(function(input, output, session) {
      }
      #Remove Recovery Animals and Recode Treatment Ranks
      AllData <- CompileData
-     CompileData <- CompileData[!str_detect(CompileData$ARMCD, "R"),]
+     CompileData <- CompileData[!stringr::str_detect(CompileData$ARMCD, "R"),]
      CompileData$ARMCD <- as.numeric(CompileData$ARMCD)
      CompileData$ARMCD <- factor(CompileData$ARMCD)
      if (length(unique(CompileData$ARMCD))>4){
@@ -1175,33 +1173,33 @@ server <- shinyServer(function(input, output, session) {
        }
        MIData$MISTRESC <- toupper(MIData$MISTRESC)
        #Convert Severity
-       MIData$MISEV <- str_replace_all(MIData$MISEV, "1 OF 5", "1")
-       MIData$MISEV <- str_replace_all(MIData$MISEV, "MINIMAL", "1")
-       MIData$MISEV <-  str_replace_all(MIData$MISEV, "2 OF 5", "2")
-       MIData$MISEV <-  str_replace_all(MIData$MISEV, "MILD", "2")
-       MIData$MISEV <-  str_replace_all(MIData$MISEV, "3 OF 5", "3")
-       MIData$MISEV <-  str_replace_all(MIData$MISEV, "MODERATE", "3")
-       MIData$MISEV <-  str_replace_all(MIData$MISEV, "4 OF 5", "4")
-       MIData$MISEV <-  str_replace_all(MIData$MISEV, "MARKED", "4")
-       MIData$MISEV <-  str_replace_all(MIData$MISEV, "5 OF 5", "5")
-       MIData$MISEV <-  str_replace_all(MIData$MISEV, "SEVERE", "5")
+       MIData$MISEV <- stringr::str_replace_all(MIData$MISEV, "1 OF 5", "1")
+       MIData$MISEV <- stringr::str_replace_all(MIData$MISEV, "MINIMAL", "1")
+       MIData$MISEV <-  stringr::str_replace_all(MIData$MISEV, "2 OF 5", "2")
+       MIData$MISEV <-  stringr::str_replace_all(MIData$MISEV, "MILD", "2")
+       MIData$MISEV <-  stringr::str_replace_all(MIData$MISEV, "3 OF 5", "3")
+       MIData$MISEV <-  stringr::str_replace_all(MIData$MISEV, "MODERATE", "3")
+       MIData$MISEV <-  stringr::str_replace_all(MIData$MISEV, "4 OF 5", "4")
+       MIData$MISEV <-  stringr::str_replace_all(MIData$MISEV, "MARKED", "4")
+       MIData$MISEV <-  stringr::str_replace_all(MIData$MISEV, "5 OF 5", "5")
+       MIData$MISEV <-  stringr::str_replace_all(MIData$MISEV, "SEVERE", "5")
        MIData$MISEV <- ordered(MIData$MISEV, levels= c("0","1", "2", "3", "4","5"))
        MIData$MISEV = MIData$MISEV %>% tidyr::replace_na("0")
        
        #Compile OM Data for Organlist
        #Find Brain indexes
        if (dataSource == "BioCelerate"){
-       Dog6576idx <- str_which(Dog6576$om$OMSPEC, "BRAIN")
-       Dog5492idx <- str_which(Dog5492$om$OMSPEC, "BRAIN")
-       Rat6576idx <- str_which(Rat6576$om$OMSPEC, "BRAIN")
-       Rat5492idx <- str_which(Rat5492$om$OMSPEC, "BRAIN")
+       Dog6576idx <- stringr::str_which(Dog6576$om$OMSPEC, "BRAIN")
+       Dog5492idx <- stringr::str_which(Dog5492$om$OMSPEC, "BRAIN")
+       Rat6576idx <- stringr::str_which(Rat6576$om$OMSPEC, "BRAIN")
+       Rat5492idx <- stringr::str_which(Rat5492$om$OMSPEC, "BRAIN")
        
        #Add Indxes that are Organs
        for (i in 1:length(Organ)){
-         Dog6576idx <- append(Dog6576idx, str_which(Dog6576$om$OMSPEC, Organ[i]))
-         Dog5492idx <- append(Dog5492idx, str_which(Dog5492$om$OMSPEC, Organ[i]))
-         Rat6576idx <- append(Rat6576idx, str_which(Rat6576$om$OMSPEC, Organ[i]))
-         Rat5492idx <- append(Rat5492idx, str_which(Rat5492$om$OMSPEC, Organ[i]))
+         Dog6576idx <- append(Dog6576idx, stringr::str_which(Dog6576$om$OMSPEC, Organ[i]))
+         Dog5492idx <- append(Dog5492idx, stringr::str_which(Dog5492$om$OMSPEC, Organ[i]))
+         Rat6576idx <- append(Rat6576idx, stringr::str_which(Rat6576$om$OMSPEC, Organ[i]))
+         Rat5492idx <- append(Rat5492idx, stringr::str_which(Rat5492$om$OMSPEC, Organ[i]))
        }
        
        OrganWeights <- data.frame(USUBJID = Dog6576$om$USUBJID[Dog6576idx],
@@ -1216,9 +1214,9 @@ server <- shinyServer(function(input, output, session) {
          for (nj in 1:numstudies){
            Name <- paste0('SENDStudy',as.character(nj))
            #Pull idx of the brain and desired organs
-           Studyidx <- str_which(get(Name)$om$OMSPEC, "BRAIN")
+           Studyidx <- stringr::str_which(get(Name)$om$OMSPEC, "BRAIN")
            for (i in 1:length(Organ)){
-             Studyidx <- append(Studyidx, str_which(get(Name)$om$OMSPEC, Organ[i]))
+             Studyidx <- append(Studyidx, stringr::str_which(get(Name)$om$OMSPEC, Organ[i]))
            }
            #Pull relevant OM Data
            OMD <- get(Name)$om[Studyidx,c("USUBJID", "OMSPEC", "OMSTRESN","OMTEST")]
@@ -1362,7 +1360,7 @@ server <- shinyServer(function(input, output, session) {
         
       } else{
         CompileData <- merge(CompileData, LBData2[,c("USUBJID","zscore","LBTESTCD")], by = "USUBJID")
-        CompileData <- dcast(CompileData, USUBJID+StudyID+Species+SEX+ARMCD+OMSPEC+BrainRatiozScore+BWSTRESN+BWzScore~LBTESTCD, value.var = "zscore", fun.aggregate = mean)
+        CompileData <- reshape2::dcast(CompileData, USUBJID+StudyID+Species+SEX+ARMCD+OMSPEC+BrainRatiozScore+BWSTRESN+BWzScore~LBTESTCD, value.var = "zscore", fun.aggregate = mean)
       }
       }
 
@@ -1374,7 +1372,7 @@ server <- shinyServer(function(input, output, session) {
       #Merge Severity MI Data into Compile Data
       MIIncidencePRIME <-MIData[,c(1,2,4)]
       Severity <- merge(MIData, CompileData[,c("USUBJID", "StudyID", "Species", "ARMCD")])
-      MIData <- dcast(MIData, USUBJID ~ MISTRESC, value.var = "MISEV")
+      MIData <- reshape2::dcast(MIData, USUBJID ~ MISTRESC, value.var = "MISEV")
       MIData[is.na(MIData)] <- "0" #Fill NAs with Zero
       CompileData<- merge(CompileData, MIData, by = "USUBJID")
 
@@ -1453,7 +1451,7 @@ server <- shinyServer(function(input, output, session) {
       #Reconcile names for Heatmap
       rep_str <- c("NORMAL" = "UNREMARKABLE", "INFILTRATION, MIXED CELL"= "INFILTRATE",
                    "INFILTRATION, MONONUCLEAR CELL" = "INFILTRATE")
-      MIplotData$Finding <- str_replace_all(MIplotData$Finding, rep_str)
+      MIplotData$Finding <- stringr::str_replace_all(MIplotData$Finding, rep_str)
       #Filter for Parameters
       MIplotData$Dose <- word(MIplotData$Treatment,-1)
       
@@ -1735,7 +1733,7 @@ server <- shinyServer(function(input, output, session) {
     if (length(SEX) == 2){
       FWPM <-makeFWplot(FWDataSummary$M, input$FWTime, input$dose, 'M')
       FWPF <- makeFWplot(FWDataSummary$F, input$FWTime, input$dose,'F')
-      print(plot(plot_grid(FWPM,FWPF, nrow = 1,ncol = 2))) 
+      print(plot(cowplot::plot_grid(FWPM,FWPF, nrow = 1,ncol = 2)))
     } else {
       FWP <- makeFWplot(FWData, input$FWTime,input$dose,SEX)
       print(FWP) 
@@ -1746,7 +1744,7 @@ server <- shinyServer(function(input, output, session) {
     if (length(SEX) == 2){
       q <- makeBWplot(BodyWeightSummary$M,input$bwMethod,input$bwMetric,input$dose,'M')
       t <- makeBWplot(BodyWeightSummary$F,input$bwMethod,input$bwMetric,input$dose,'F')
-      print(ggdraw(plot_grid(q,t))) 
+      print(cowplot::ggdraw(cowplot::plot_grid(q,t)))
     } else {
       q <- makeBWplot(BodyWeight,input$bwMethod,input$bwMetric,input$dose,SEX)
       print(q) 
@@ -1758,7 +1756,7 @@ server <- shinyServer(function(input, output, session) {
     if (length(SEX) == 2){
       KOM <- makeOMplot(OMresults,'KIDNEY',input$omMethod,input$dose,'M')
       KOM2 <- makeOMplot(OMresults,'KIDNEY',input$omMethod,input$dose,'F')
-      print(ggdraw(plot_grid(KOM,KOM2))) 
+      print(cowplot::ggdraw(cowplot::plot_grid(KOM,KOM2)))
     } else{
       KOM <- makeOMplot(OMresults,'KIDNEY',input$omMethod,input$dose,SEX)
       print(KOM) 
@@ -1769,7 +1767,7 @@ server <- shinyServer(function(input, output, session) {
     if (length(SEX) == 2){
       LOM <- makeOMplot(OMresults,'LIVER',input$omMethod,input$dose,'M')
       LOM2 <- makeOMplot(OMresults,'LIVER',input$omMethod,input$dose,'F')
-      print(ggdraw(plot_grid(LOM,LOM2))) 
+      print(cowplot::ggdraw(cowplot::plot_grid(LOM,LOM2)))
     } else{
       LOM <- makeOMplot(OMresults,'LIVER',input$omMethod,input$dose,SEX)
       print(LOM) 
@@ -1780,7 +1778,7 @@ server <- shinyServer(function(input, output, session) {
     if (length(SEX) == 2){
       HOM <- makeOMplot(OMresults,'HEMATOPOIETIC',input$omMethod,input$dose,'M')
       HOM2 <- makeOMplot(OMresults,'HEMATOPOIETIC',input$omMethod,input$dose,'F')
-      print(ggdraw(plot_grid(HOM,HOM2))) 
+      print(cowplot::ggdraw(cowplot::plot_grid(HOM,HOM2)))
     } else{
       HOM <- makeOMplot(OMresults,'HEMATOPOIETIC',input$omMethod,input$dose,SEX)
       print(HOM) 
@@ -1791,7 +1789,7 @@ server <- shinyServer(function(input, output, session) {
     if (length(SEX) == 2){
       EOM <- makeOMplot(OMresults,'ENDOCRINE',input$omMethod,input$dose,'M')
       EOM2 <- makeOMplot(OMresults,'ENDOCRINE',input$omMethod,input$dose,'F')
-      print(ggdraw(plot_grid(EOM,EOM2))) 
+      print(cowplot::ggdraw(cowplot::plot_grid(EOM,EOM2)))
     } else{
       EOM <- makeOMplot(OMresults,'ENDOCRINE',input$omMethod,input$dose,SEX)
       print(EOM) 
@@ -1802,7 +1800,7 @@ server <- shinyServer(function(input, output, session) {
     if (length(SEX) == 2){
       ROM <- makeOMplot(OMresults,'REPRODUCTIVE',input$omMethod,input$dose,'M')
       ROM2 <- makeOMplot(OMresults,'REPRODUCTIVE',input$omMethod,input$dose,'F')
-      print(ggdraw(plot_grid(ROM,ROM2))) 
+      print(cowplot::ggdraw(cowplot::plot_grid(ROM,ROM2)))
     } else{
       ROM <- makeOMplot(OMresults,'REPRODUCTIVE',input$omMethod,input$dose,SEX)
       print(ROM) 
@@ -1814,7 +1812,7 @@ server <- shinyServer(function(input, output, session) {
     if (length(SEX) ==2){
       KERB <- makeLBplot(LBresults, 'KIDNEY','SERUM',input$dose,'M')
       KERB2 <- makeLBplot(LBresults, 'KIDNEY','SERUM',input$dose,'F')
-      print(ggdraw(plot_grid(KERB,KERB2))) 
+      print(cowplot::ggdraw(cowplot::plot_grid(KERB,KERB2)))
     } else {
       KERB <- makeLBplot(LBresults, 'KIDNEY','SERUM',input$dose,SEX)
       print(KERB) 
@@ -1825,7 +1823,7 @@ server <- shinyServer(function(input, output, session) {
     if (length(SEX) ==2){
       KURILB <- makeLBplot(LBresults, 'KIDNEY','URINE',input$dose,'M')
       KURILB2 <- makeLBplot(LBresults, 'KIDNEY','URINE',input$dose,'F')
-      print(ggdraw(plot_grid(KURILB,KURILB2))) 
+      print(cowplot::ggdraw(cowplot::plot_grid(KURILB,KURILB2)))
     } else {
       KURILB <- makeLBplot(LBresults, 'KIDNEY','URINE',input$dose,SEX)
       print(KURILB) 
@@ -1837,7 +1835,7 @@ server <- shinyServer(function(input, output, session) {
     if (length(SEX) ==2){
       LSERLB <- makeLBplot(LBresults, 'LIVER','SERUM',input$dose,'M')
       LSERLB2 <- makeLBplot(LBresults, 'LIVER','SERUM',input$dose,'F')
-      print(ggdraw(plot_grid(LSERLB,LSERLB2))) 
+      print(cowplot::ggdraw(cowplot::plot_grid(LSERLB,LSERLB2)))
     } else {
       LSERLB <- makeLBplot(LBresults, 'LIVER','SERUM',input$dose,SEX)
       print(LSERLB) 
@@ -1848,7 +1846,7 @@ server <- shinyServer(function(input, output, session) {
     if (length(SEX) ==2){
       HHEMELB <- makeLBplot(LBresults, 'HEMATOPOIETIC','WHOLE BLOOD',input$dose,'M')
       HHEMELB2 <- makeLBplot(LBresults, 'HEMATOPOIETIC','WHOLE BLOOD',input$dose,'F')
-      print(ggdraw(plot_grid(HHEMELB,HHEMELB2))) 
+      print(cowplot::ggdraw(cowplot::plot_grid(HHEMELB,HHEMELB2)))
     } else {
       HHEMELB <- makeLBplot(LBresults, 'HEMATOPOIETIC','WHOLE BLOOD',input$dose,SEX)
       print(HHEMELB) 
@@ -1859,7 +1857,7 @@ server <- shinyServer(function(input, output, session) {
     if (length(SEX) ==2){
       ESERLB <- makeLBplot(LBresults, 'ENDOCRINE','SERUM',input$dose,'M')
       ESERLB2 <- makeLBplot(LBresults, 'ENDOCRINE','SERUM',input$dose,'F')
-      print(ggdraw(plot_grid(ESERLB,ESERLB2))) 
+      print(cowplot::ggdraw(cowplot::plot_grid(ESERLB,ESERLB2)))
     } else {
       ESERLB <- makeLBplot(LBresults, 'ENDOCRINE','SERUM',input$dose,SEX)
       print(ESERLB) 
@@ -1906,7 +1904,7 @@ server <- shinyServer(function(input, output, session) {
                        input$KMIClustY, input$KMIClustX)
       KM2 <- makeMIplot(MIresults,'KIDNEY','KIDNEY',input$dose,'F',
                         input$KMIClustY, input$KMIClustX)
-      print(grid.arrange(KM,KM2))
+      print(gridExtra::grid.arrange(KM,KM2))
     } else {
       KM <- makeMIplot(MIresults,'KIDNEY','KIDNEY',input$dose,SEX,
                        input$KMIClustY, input$KMIClustX)
@@ -1920,7 +1918,7 @@ server <- shinyServer(function(input, output, session) {
                        input$LMIClustY, input$LMIClustX)
       LM2 <- makeMIplot(MIresults,'LIVER','LIVER',input$dose,'F',
                         input$LMIClustY, input$LMIClustX)
-      print(grid.arrange(LM,LM2))
+      print(gridExtra::grid.arrange(LM,LM2))
     } else {
       LM <- makeMIplot(MIresults,'LIVER','LIVER',input$dose,SEX,
                        input$LMIClustY, input$LMIClustX)
@@ -1935,7 +1933,7 @@ server <- shinyServer(function(input, output, session) {
                        input$HMIClustY, input$HMIClustX)
       HM2 <- makeMIplot(MIresults,'HEMATOPOIETIC',"SPLEEN",input$dose,'F',
                         input$HMIClustY, input$HMIClustX)
-      print(grid.arrange(HM,HM2))
+      print(gridExtra::grid.arrange(HM,HM2))
        }
     } else {
       if ("SPLEEN" %in% MITESTCDlist$HEMATOPOIETIC){
@@ -1953,7 +1951,7 @@ server <- shinyServer(function(input, output, session) {
                          input$HMIClustY, input$HMIClustX)
         HM2 <- makeMIplot(MIresults,'HEMATOPOIETIC',"BONE MARROW",input$dose,'F',
                           input$HMIClustY, input$HMIClustX)
-        print(grid.arrange(HM,HM2))
+        print(gridExtra::grid.arrange(HM,HM2))
         }
      } else {
         if ("BONE MARROW" %in% MITESTCDlist$HEMATOPOIETIC){
@@ -1971,7 +1969,7 @@ server <- shinyServer(function(input, output, session) {
                             input$HMIClustY, input$HMIClustX)
            HM2 <- makeMIplot(MIresults,'HEMATOPOIETIC',"THYMUS",input$dose,'F',
                              input$HMIClustY, input$HMIClustX)
-           print(grid.arrange(HM,HM2))
+           print(gridExtra::grid.arrange(HM,HM2))
         }
      } else {
         if ("THYMUS" %in%  MITESTCDlist$HEMATOPOIETIC){
@@ -1989,7 +1987,7 @@ server <- shinyServer(function(input, output, session) {
                          input$HMIClustY, input$HMIClustX)
         HM2 <- makeMIplot(MIresults,'HEMATOPOIETIC',"LYMPH NODE, MANDIBULAR",input$dose,'F',
                           input$HMIClustY, input$HMIClustX)
-        print(grid.arrange(HM,HM2))
+        print(gridExtra::grid.arrange(HM,HM2))
       }
     } else {
       if ("LYMPH NODE, MANDIBULAR" %in%  MITESTCDlist$HEMATOPOIETIC){
@@ -2006,7 +2004,7 @@ server <- shinyServer(function(input, output, session) {
                          input$HMIClustY, input$HMIClustX)
         HM2 <- makeMIplot(MIresults,'HEMATOPOIETIC',"LYMPH NODE, MESENTERIC",input$dose,'F',
                           input$HMIClustY, input$HMIClustX)
-        print(grid.arrange(HM,HM2))
+        print(gridExtra::grid.arrange(HM,HM2))
       }
     } else {
       if ("LYMPH NODE, MESENTERIC" %in%  MITESTCDlist$HEMATOPOIETIC){
@@ -2024,7 +2022,7 @@ server <- shinyServer(function(input, output, session) {
                             input$EMIClustY, input$EMIClustX)
            EM2 <- makeMIplot(MIresults,'ENDOCRINE', "GLAND, ADRENAL",input$dose,'F',
                              input$EMIClustY, input$EMIClustX)
-           print(grid.arrange(EM,EM2))
+           print(gridExtra::grid.arrange(EM,EM2))
         }
      } else {
         if ("GLAND, ADRENAL" %in%  MITESTCDlist$ENDOCRINE){
@@ -2042,7 +2040,7 @@ server <- shinyServer(function(input, output, session) {
                             input$EMIClustY, input$EMIClustX)
            EM2 <- makeMIplot(MIresults,'ENDOCRINE', "GLAND, PITUITARY",input$dose,'F',
                              input$EMIClustY, input$EMIClustX)
-           print(grid.arrange(EM,EM2))
+           print(gridExtra::grid.arrange(EM,EM2))
         }
      } else {
         if ("GLAND, PITUITARY" %in%  MITESTCDlist$ENDOCRINE){
@@ -2060,7 +2058,7 @@ server <- shinyServer(function(input, output, session) {
                             input$EMIClustY, input$EMIClustX)
            EM2 <- makeMIplot(MIresults,'ENDOCRINE', "GLAND, PARATHYROID",input$dose,'F',
                              input$EMIClustY, input$EMIClustX)
-           print(grid.arrange(EM,EM2))
+           print(gridExtra::grid.arrange(EM,EM2))
         }
      } else {
         if ("GLAND, PARATHYROID" %in%  MITESTCDlist$ENDOCRINE){
@@ -2078,7 +2076,7 @@ server <- shinyServer(function(input, output, session) {
                             input$EMIClustY, input$EMIClustX)
            EM2 <- makeMIplot(MIresults,'ENDOCRINE', "GLAND, THYROID",input$dose,'F',
                              input$EMIClustY, input$EMIClustX)
-           print(grid.arrange(EM,EM2))
+           print(gridExtra::grid.arrange(EM,EM2))
         }
      } else {
         if ("GLAND, THYROID" %in%  MITESTCDlist$ENDOCRINE){
@@ -2096,7 +2094,7 @@ server <- shinyServer(function(input, output, session) {
                             input$EMIClustY, input$EMIClustX)
            EM2 <- makeMIplot(MIresults,'ENDOCRINE', "PANCREAS",input$dose,'F',
                              input$EMIClustY, input$EMIClustX)
-           print(grid.arrange(EM,EM2))
+           print(gridExtra::grid.arrange(EM,EM2))
         }
      } else {
         if ("PANCREAS" %in%  MITESTCDlist$ENDOCRINE){
@@ -2172,7 +2170,7 @@ server <- shinyServer(function(input, output, session) {
      }
   },height = 350)
   
-  output$tree <- renderTree(TreeSelect)
+  output$tree <- shinyTree::renderTree(TreeSelect)
   
   }})
   
@@ -2273,7 +2271,7 @@ server <- shinyServer(function(input, output, session) {
      plotOutput('RMIplot8', height = plotHeight$X)
   })
   
-  output$tree <- renderTree ({
+  output$tree <- shinyTree::renderTree ({
      organSystemList <- list( 
         'Kidney' = list(
            'Laboratory Values(LB)' = list("Clinical Chemistry" = structure(list('SERUM | CREAT'= 'SERUM | CREAT',
