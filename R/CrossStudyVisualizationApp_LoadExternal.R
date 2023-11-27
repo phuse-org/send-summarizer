@@ -1,3 +1,4 @@
+
 #This R File Makes an App that allows for visualization of cross-study analysis
 #of SEND Data
 
@@ -6,40 +7,65 @@
       #* Goal is to have this as another blue tab like the "data load" tab 
 #* Ability to load different studies > SB (Done)
 #* Add User control to facet by route, duration, treatment or species
- 
 
-#Packages
-library(cowplot)
-library(dplyr)
-library(devtools)
-library(forcats)
-library(gridExtra)
-library(gridGraphics)
-library(ggplot2)
-library(ggpattern)
-library(haven)
-library(Hmisc)
-library(httr)
-library(ini)
-library(magrittr)
-library(openxlsx)
-library(readxl)
-library(reshape2)
-library(sendigR)
-library(shiny)
-library(shinyFiles)
-library(shinydashboard)
-library(shinyWidgets)
-library(shinyTree)
-library(scales)
-library(tidyverse)
-library(tools)
-library(this.path)
 
+
+################################################################################
+## this code is for creating shiny app
+##
+## History:
+## -----------------------------------------------------------------------------
+## Date         Programmer            Note
+## ----------   --------------------  ------------------------------------------
+## 2023-05-22   Susan Butler,           Initial version
+##              Yousuf Ali
+################################################################################
+
+#' @title Run sendCrossStudy app
+#' @param database_path Optional, character\cr
+#'    file path for database
+#'
+#' @return function run the app.
+#'
+#' @export
+#' @examples
+#' \dontrun{
+#' send_cross_study_app()
+#' }
+
+#' @import cowplot
+#' @import devtools
+#' @import dplyr
+#' @import forcats
+#' @import ggpattern
+#' @import ggplot2
+#' @import gridExtra
+#' @import gridGraphics
+#' @import haven
+#' @import Hmisc
+#' @import httr
+#' @import magrittr
+#' @import openxlsx
+#' @import readxl
+#' @import reshape2
+#' @import scales
+#' @import sendigR
+#' @import shiny
+#' @import shinydashboard
+#' @import shinyFiles
+#' @import shinyTree
+#' @import shinyWidgets
+#' @import tools
+#' @importFrom magrittr %>%
+#' @importFrom tidyr replace_na
+
+
+
+send_cross_study_app <- function(database_path) {
 
 #Set File Path to Biocelerate Data
-homePath <- dirname(this.path())
-setwd(homePath)
+## homePath <- dirname(this.path())
+## setwd(homePath)
 
 ##### Setup Values and Functions ####
 
@@ -52,9 +78,15 @@ defaultVal <- 350
 SEX <- 'M'
 
 #Database Load
+## db_path <- '~/OneDrive - FDA/yousuf/10_DATA/real_data_250.db'
+db_path <- database_path
+## db_path <- '~/OneDrive - FDA/yousuf/10_DATA/Biocelerate_shared_data/data/biocelerate.db'
 dbtoken <- sendigR::initEnvironment(dbType = 'sqlite',
-                                    dbPath = paste0(homePath,"/DataCentral-2023-03-30.db"),
+                                    dbPath = db_path,
                                     dbCreate = FALSE)
+## dbtoken <- DBI::dbConnect(DBI::dbDriver("SQLite"), dbname = db_path)
+
+
 RptDoseStudyID <- sendigR::getStudiesSDESIGN(dbtoken,studyDesignFilter = "PARALLEL")
 MIStudyIDS <- sendigR::genericQuery(dbtoken, "SELECT STUDYID FROM MI") #limiting to MI because it is the least likely to be filled
 dbStudyIDs <- intersect(RptDoseStudyID$STUDYID,MIStudyIDS$STUDYID)
@@ -71,14 +103,14 @@ rm(STITLE) #Freeing Memory
 
 
 #Load Relevant Functions
-source('Functions/Functions.R')
-source('Functions/groupSEND.R')
-source('Functions/makeRadar.R')
-source('Functions/makeMIPlot.R')
-source('Functions/makeLBPlot.R')
-source('Functions/makeOMPlot.R')
-source('Functions/makeBWPlot.R')
-source('Functions/makeFWPlot.R')
+## source('Functions/Functions.R')
+## source('Functions/groupSEND.R')
+## source('Functions/makeRadar.R')
+## source('Functions/makeMIPlot.R')
+## source('Functions/makeLBPlot.R')
+## source('Functions/makeOMPlot.R')
+## source('Functions/makeBWPlot.R')
+## source('Functions/makeFWPlot.R')
 
 #Standardizing Terminology
 MITESTCDlist <- list('LIVER' = c('LIVER'),
@@ -211,7 +243,7 @@ ui <- dashboardPage (
       tabPanel("Data Source", 
               column(width = 5,pickerInput(inputId = 'DataSourceChoice',
                                             label = "Choose data source:", 
-                                            c("BioCelerate","Local","Database"), selected = "BioCelerate")),
+                                            c("BioCelerate","Local","Database"), selected = "Database")),
               conditionalPanel(condition = "input.DataSourceChoice == 'Local' ",
                                titlePanel("Select Local Folder for Repeat-Dose Study"),
                                shinyDirButton('folder','Select Folder Studies are in:', 'Please Select a Folder', FALSE)
@@ -1138,7 +1170,7 @@ server <- shinyServer(function(input, output, session) {
            MIData <- rbind(MIData, MBD)
          }
          #MAKE NA Sev's a 0
-         MIData$MISEV = MIData$MISEV %>% replace_na("0")
+         MIData$MISEV = MIData$MISEV %>% tidyr::replace_na("0")
          MIData <- na.omit(MIData)
        }
        MIData$MISTRESC <- toupper(MIData$MISTRESC)
@@ -1154,7 +1186,7 @@ server <- shinyServer(function(input, output, session) {
        MIData$MISEV <-  str_replace_all(MIData$MISEV, "5 OF 5", "5")
        MIData$MISEV <-  str_replace_all(MIData$MISEV, "SEVERE", "5")
        MIData$MISEV <- ordered(MIData$MISEV, levels= c("0","1", "2", "3", "4","5"))
-       MIData$MISEV = MIData$MISEV %>% replace_na("0")
+       MIData$MISEV = MIData$MISEV %>% tidyr::replace_na("0")
        
        #Compile OM Data for Organlist
        #Find Brain indexes
@@ -2336,3 +2368,5 @@ server <- shinyServer(function(input, output, session) {
 
 })
 shinyApp(ui = ui, server = server)
+
+}

@@ -1,3 +1,21 @@
+#' @title Merge demographic and treatment data for each of the SEND experimental results domains
+#' @param dataset Mandatory, character\cr
+#'    dataset
+#'
+#' @param dmFields Mandatory, vector\cr
+#'      vector of variables
+#' @param exFields Mandatory, vector\cr
+#'      vector of variables
+#' @param exFields Mandatory, vector\cr
+#'      vector of variables
+#' @return table
+#'
+#' @examples
+#' \dontrun{
+#' groupSEND()
+#' }
+
+
 # Function to merge in demographic and treatment data for each of the SEND experimental results domains
 
 ### IDEAS/COLUMNS/FUNCTIONS TO ADD ###
@@ -14,12 +32,12 @@
 #7) Deal with POOLID's
 #8) Create Structured Comments in this script to explain what it's doing
 
-'%ni%' <- Negate('%in%')
 
 groupSEND <- function(dataset,targetDomain,dmFields=c('SEX','ARMCD','SETCD','USUBJID', 'RFSTDTC'),
                       exFields=c('EXTRT','EXDOSE','EXDOSU'),
                       txParams=c('TRTDOS','TRTDOSU','TKDESC','GRPLBL','SPGRPCD')) {
-  
+
+'%ni%' <- Negate('%in%')
   # Check to ensure that dataset contains all required domains
   requiredDomains <- c('dm','ex','tx','ta','ds') # alter the script to check for PP
   for (domain in requiredDomains) {

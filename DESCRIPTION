@@ -1,0 +1,37 @@
+Package: SENDcross
+Title: shiny app for SEND cross study
+Version: 0.0.0.9000
+Authors@R: 
+    person("First", "Last", , "first.last@example.com", role = c("aut", "cre"),
+           comment = c(ORCID = "YOUR-ORCID-ID"))
+Description: app for SEND cross study
+License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
+    license
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.2.1
+Imports: 
+    cowplot,
+    devtools,
+    dplyr,
+    forcats,
+    ggpattern,
+    ggplot2,
+    gridExtra,
+    gridGraphics,
+    haven,
+    Hmisc,
+    httr,
+    magrittr,
+    openxlsx,
+    readxl,
+    reshape2,
+    scales,
+    sendigR,
+    shiny,
+    shinydashboard,
+    shinyFiles,
+    shinyTree,
+    shinyWidgets,
+    tidyr,
+    tools
