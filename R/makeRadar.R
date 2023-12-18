@@ -8,7 +8,7 @@
 
 makeRadar <- function(summaryData, organSystem, Gender) {
   
-  library(fmsb)
+  ## library(fmsb)
   organSystem <- toupper(organSystem)
   #Limit summaryData to desired Organ System
   if (organSystem %in% c('ALL', 'SUMMARY'))

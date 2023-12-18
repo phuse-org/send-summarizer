@@ -1370,11 +1370,18 @@ server <- shinyServer(function(input, output, session) {
   ########## MI Data ###############
       
       #Merge Severity MI Data into Compile Data
+       ## print('MIDATA')
+       ## print(str(MIData))
       MIIncidencePRIME <-MIData[,c(1,2,4)]
+
+      ## print('MIIncidencePRIME')
+       ## print(head(MIIncidencePRIME))
       Severity <- merge(MIData, CompileData[,c("USUBJID", "StudyID", "Species", "ARMCD")])
       MIData <- reshape2::dcast(MIData, USUBJID ~ MISTRESC, value.var = "MISEV")
       MIData[is.na(MIData)] <- "0" #Fill NAs with Zero
       CompileData<- merge(CompileData, MIData, by = "USUBJID")
+       print('compile data')
+       print(str(CompileData))
 
       # Remove Normal MI Results
       normalIndex <- which(colnames(CompileData) == 'NORMAL')
@@ -1393,6 +1400,8 @@ server <- shinyServer(function(input, output, session) {
                                Sex = NA,
                                Finding = NA,
                                Count = NA)
+      print('GroupIncid')
+      print(str(GroupIncid))
       GroupIncid2 <- GroupIncid
       for (Study in unique(MIIncidence$StudyID)){
         for (sex in c('M','F')) {
@@ -1405,8 +1414,13 @@ server <- shinyServer(function(input, output, session) {
           sexSubjects <- CompileData$USUBJID[which(CompileData$SEX == sex)]
           sexIndex <- which(StudyMI$USUBJID %in% sexSubjects)
           StudyMI <- StudyMI[sexIndex,]
+          print('StudyMI')
+          print(str(StudyMI))
           for(dose in unique(StudyMI$ARMCD)){
             doseMI <- StudyMI[which(StudyMI$ARMCD == dose),]
+            print('doseMI')
+            print(str(doseMI))
+
 
             Incid <- data.frame(table(toupper(doseMI$MISTRESC))/length(unique(doseMI$USUBJID)))
             names(Incid)[2] <- "Count"
@@ -1509,6 +1523,9 @@ server <- shinyServer(function(input, output, session) {
       }
       IncidenceOverideCount <- 0 
       #Score MI Data
+      ## print('colIndex')
+       ## print(colIndex)
+       ## print(str(CompileData))
       colIndex <- seq((colIndex[length(colIndex)]+1), ncol(CompileData))
       for (i in colIndex){
         colName <- colnames(CompileData)[i]
@@ -1868,6 +1885,9 @@ server <- shinyServer(function(input, output, session) {
      for (i in 1:length(SEX)) { #Overall Summary Radar
         local({
         genders <- SEX[i]
+        print('genders')
+        print(genders)
+        print(summaryData)
         output[[paste('SummaryRadar',i)]] <- renderPlot({ 
            plotData <- makeRadar(summaryData,'ALL',genders)
          return(plotData)

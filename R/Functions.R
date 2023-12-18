@@ -51,6 +51,8 @@
 
 # Function to download all files from a GitHub folder
 # NOTE: this function requires the package: "httr"
+
+
 download.GitHub.folder <- function (
     GitHubRepo="phuse-org/phuse-scripts"
   , baseDirGitHub="https://github.com/phuse-org/phuse-scripts/raw/master"
