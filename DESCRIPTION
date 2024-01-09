@@ -1,4 +1,4 @@
-Package: SENDcross
+Package: sendSummarizer
 Title: shiny app for SEND cross study
 Version: 0.0.0.9000
 Authors@R: 
