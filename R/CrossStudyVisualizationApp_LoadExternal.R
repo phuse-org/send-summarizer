@@ -566,12 +566,17 @@ server <- shinyServer(function(input, output, session) {
             MITESTCDlist[[organSystem]] <- as.character(MITESTS)
             OMTESTCDlist[[organSystem]] <- as.character(OMTESTS)
          }
+
+
+         if ( input$DataSourceChoice== "BioCelerate"){
          #Specific Error Catch for BioCelerate Studies
          if (length(MITESTCDlist$HEMATOPOIETIC) == 1 & MITESTCDlist$HEMATOPOIETIC == "BONE MARROW"){
             showNotification("Dog 5492 Does not Have Bone Marrow MI. Need to add another MI Selection to HEMATOPOIETIC", type = "error")
             return(NULL)
             stop()
          }
+         }
+
          
          #End point aggregation Method (for Radar): 'mean', 'animalMax', or 'endpointMax'
          aggregationMethod <- input$AGGMethod
