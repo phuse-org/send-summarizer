@@ -1896,27 +1896,27 @@ server <- shinyServer(function(input, output, session) {
         output[[paste('SummaryRadar',i)]] <- renderPlot({ 
            plotData <- makeRadar(summaryData,'ALL',genders)
          return(plotData)
-        })
+        },height = 700, width = 700)
         output[[paste('LRadar',i)]] <- renderPlot({ 
            plotData <- makeRadar(summaryData,'Liver',genders)
            return(plotData)
-        })
+        },height = 700, width = 700)
         output[[paste('KRadar',i)]] <- renderPlot({ 
            plotData <- makeRadar(summaryData,'Kidney',genders)
            return(plotData)
-        })
+        },height = 700, width = 700)
         output[[paste('HRadar',i)]] <- renderPlot({ 
            plotData <- makeRadar(summaryData,'HEMATOPOIETIC',genders)
            return(plotData)
-        })
+        },height = 700, width = 700)
         output[[paste('ERadar',i)]] <- renderPlot({ 
            plotData <- makeRadar(summaryData,'Endocrine',genders)
            return(plotData)
-        })
+        },height = 700, width = 700)
         output[[paste('RRadar',i)]] <- renderPlot({ 
            plotData <- makeRadar(summaryData,'Reproductive',genders)
            return(plotData)
-        })
+        },height = 700, width = 700)
         
      }) 
   }
