@@ -74,7 +74,7 @@ makeRadar <- function(summaryData, organSystem, Gender) {
   legend_point <- as.numeric(SpeciesFormat$legends)
   
   #Generate Radar plot
-  par(xpd= TRUE,mar = c(1,1,1,1), oma = c(1,1,1,1))
+  par(xpd= TRUE,mar = c(0,0,1,0), oma = c(0,0,1,0))
   radarplot <- radarchart(Data, axistype = 1,
                           #Customize Background Grid
                           cglcol = "grey",cglwd = 0.8,cglty=1,
