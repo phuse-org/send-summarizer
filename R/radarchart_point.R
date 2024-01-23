@@ -4,7 +4,7 @@ radarchart_point <- function(df, axistype=0, seg=4, pty=16, pcol=1:8, plty=1:6, 
                        cglcol="navy", axislabcol="blue", title="", maxmin=TRUE,
                        na.itp=TRUE, centerzero=FALSE, vlabels=NULL, vlcex=NULL,
                        caxislabels=NULL, calcex=NULL,
-                       paxislabels=NULL, palcex=NULL, cex_point=1, ...) {
+                       paxislabels=NULL, palcex=NULL, cex_point=NULL, ...) {
   if (!is.data.frame(df)) { cat("The data must be given as dataframe.\n"); return() }
   if ((n <- length(df))<3) { cat("The number of variables must be 3 or more.\n"); return() }
   if (maxmin==FALSE) { # when the dataframe does not include max and min as the top 2 rows.
