@@ -74,17 +74,17 @@ makeRadar <- function(summaryData, organSystem, Gender) {
   legend_point <- as.numeric(SpeciesFormat$legends)
   
   #Generate Radar plot
-  par(xpd= TRUE,mar = c(0,0,0,0), oma = c(0,0,0,0))
+  par(xpd= TRUE,mar = c(1,12,2,12), oma = c(1,12,2,12))
   radarplot <- radarchart_point(Data, axistype = 1,
                           #Customize Background Grid
-                          cglcol = "grey",cglwd = 0.8,cglty=1,
+                          cglcol = "grey",cglwd = 1,cglty=1,
                           #Axis Labels
-                          axislabcol="grey",vlcex=6,palcex=3,caxislabels = seq(0,3,1), seg = 3,
+                          axislabcol="grey",vlcex=1.5,caxislabels = seq(0,3,1), seg = 3,
                           #Customize Data Coloring
                           pty= shapes_point, plty = shapes_line, pcol = colors_border,plwd = 2.5, 
-                          title = paste0(Title, " Radar Plot"), cex_point= 5)
+                          title = paste0(Title, " Radar Plot"), cex_point= 2)
   legend("topright",legend=GroupNames, bty = "n", pch = legend_point,
-         col = colors_border, text.col = "black", cex = 5.0, pt.cex = 2, y.intersp = 1)
+         col = colors_border, text.col = "black", cex = 1.5, pt.cex = 1.2, y.intersp = 1)
   p <- recordPlot(radarplot)
   return(p)
 }
