@@ -7,7 +7,7 @@
 #ENDOCRINE and BW
 
 makeRadar <- function(summaryData, organSystem, Gender) {
-  
+  #saveRDS(summaryData,"summaryData.rds")
   ## library(fmsb)
   organSystem <- toupper(organSystem)
   #Limit summaryData to desired Organ System
@@ -39,7 +39,7 @@ makeRadar <- function(summaryData, organSystem, Gender) {
   Data <- t(Data)
   Data <- rbind(rep(3,ncol(Data)),rep(0,ncol(Data)), Data)
   Data <- as.data.frame(Data)
-  
+  #saveRDS(Data,"Data.rds")
   #Create Group Names
   GroupNames <-str_replace(rownames(Data)[3:nrow(Data)],"\\.", " ")
   #Grab Num Species/Compounds from GroupNames

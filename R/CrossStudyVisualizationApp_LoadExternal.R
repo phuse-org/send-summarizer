@@ -265,7 +265,12 @@ ui <- dashboardPage (
                                               uiOutput("select.folder")))
               ),
       tabPanel('Overall',
-               uiOutput('ReactSummaryRadar')),
+               tabsetPanel(
+                 tabPanel('Overall Radarplot',
+                          uiOutput('ReactSummaryRadar')),
+                 tabPanel('Overall Barplot',
+                          uiOutput('ReactSummaryBar'))
+               )),
       tabPanel('Body Weight',
                column(width = 5,pickerInput(inputId = 'bwMetric',
                            label = "BW Metric", 
@@ -280,6 +285,7 @@ ui <- dashboardPage (
                tabsetPanel(
                  tabPanel('Overall',
                           uiOutput('ReactKidneyRadar')),
+                 tabPanel('Kidney Barplot'),
                  tabPanel('Clinical Chemistry',
                           plotOutput('KSERLBplot')),
                  tabPanel('Urinalysis',
@@ -294,12 +300,14 @@ ui <- dashboardPage (
                                       label = "Cluster the X Axis?", 
                                       c("NO","YES"), selected = 'NO')),
                           column(width = 10,uiOutput('KMIplotreactive')))
+                 
                )
       ),
       tabPanel('Liver',
                tabsetPanel(
                  tabPanel('Overall',
                           uiOutput('ReactLiverRadar')),
+                 tabPanel('Liver Barplot'),
                  tabPanel('Clincal Chemistry',
                           plotOutput('LSERLBplot')),
                  tabPanel('Organ Weights',
@@ -317,6 +325,7 @@ ui <- dashboardPage (
                tabsetPanel(
                  tabPanel('Overall',
                           uiOutput('ReactHemaRadar')),
+                 tabPanel('Hematopoietic Barplot'),
                  tabPanel('Hematology',
                           plotOutput('HHEMELBplot')),
                  tabPanel('Organ Weights',
@@ -340,6 +349,7 @@ ui <- dashboardPage (
                tabsetPanel(
                   tabPanel('Overall',
                            uiOutput('ReactEndoRadar')),
+                  tabPanel('Endocrine Barplot'),
                   tabPanel('Clinical Chemistry',
                            plotOutput('ESERLBplot')),
                   tabPanel('Organ Weights',
@@ -364,6 +374,7 @@ ui <- dashboardPage (
                tabsetPanel(
                   tabPanel('Overall',
                            uiOutput('ReactReproRadar')),
+                  tabPanel('Reproductive Barplot'),
                   tabPanel('Organ Weights',
                            plotOutput('ROMplot',height = 600)),
                   tabPanel('Histopathology',
@@ -1920,6 +1931,22 @@ server <- shinyServer(function(input, output, session) {
         
      }) 
   }
+  ## Bar Plots##
+  for (i in 1:length(SEX)) { #Overall Summary Radar
+    local({
+      genders <- SEX[i]
+      print('genders')
+      print(genders)
+      print(summaryData)
+      output[[paste('SummaryBar',i)]] <- renderPlot({ 
+        plotData <- makeBarPlot(summaryData,'ALL',genders)
+        return(plotData)
+      })
+      
+      
+    }) 
+  }
+  
   
   
   ## MI Plots ##
@@ -2204,7 +2231,11 @@ server <- shinyServer(function(input, output, session) {
   output$ReactSummaryRadar <- renderUI({ #Generate one plot per Gender
     lapply(paste('SummaryRadar',1:numSEX$X),plotOutput)
   })
-  output$ReactLiverRadar <- renderUI({
+  #new addition - barplot
+  output$ReactSummaryBar<- renderUI({
+    lapply(paste('SummaryBar',1:numSEX$X),plotOutput)
+  })
+    output$ReactLiverRadar <- renderUI({
      lapply(paste('LRadar',1:numSEX$X),plotOutput)
   })
   output$ReactKidneyRadar <- renderUI({
