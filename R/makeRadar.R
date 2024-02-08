@@ -39,7 +39,7 @@ makeRadar <- function(summaryData, organSystem, Gender) {
   Data <- t(Data)
   Data <- rbind(rep(3,ncol(Data)),rep(0,ncol(Data)), Data)
   Data <- as.data.frame(Data)
-  #saveRDS(Data,"Data.rds")
+  
   #Create Group Names
   GroupNames <-str_replace(rownames(Data)[3:nrow(Data)],"\\.", " ")
   #Grab Num Species/Compounds from GroupNames
@@ -72,7 +72,7 @@ makeRadar <- function(summaryData, organSystem, Gender) {
   shapes_line <- as.numeric(SpeciesFormat$shapes)
   shapes_point <- as.numeric(SpeciesFormat$points)
   legend_point <- as.numeric(SpeciesFormat$legends)
-  
+  #saveRDS(Data,"Data.rds")
   #Generate Radar plot
   par(xpd= TRUE,mar = c(1,12,2,12), oma = c(1,12,2,12))
   radarplot <- radarchart_point(Data, axistype = 1,

@@ -49,13 +49,14 @@
 #' @importFrom tools file_path_sans_ext
 #' @importFrom magrittr %>% %<>%
 #' @importFrom stringr str_count str_detect str_replace_all str_which word str_match
-#' @importFrom tidyr replace_na
+#' @importFrom tidyr replace_na pivot_longer
 #' @importFrom dplyr arrange case_when first group_by mutate summarise_at vars lag summarise
 #' @importFrom grDevices rgb
 #' @importFrom stats aggregate lm sd na.omit setNames complete.cases dist hclust
 #' @importFrom fmsb radarchart
 #' @importFrom graphics legend par
 #' @importFrom utils download.file read.csv head
+#' @importFrom ggplot2 ggplot
 
 
 
@@ -109,6 +110,7 @@ rm(STITLE) #Freeing Memory
 ## source('Functions/makeOMPlot.R')
 ## source('Functions/makeBWPlot.R')
 ## source('Functions/makeFWPlot.R')
+## source('Functions/makeBarPlot.R')
 
 #Standardizing Terminology
 MITESTCDlist <- list('LIVER' = c('LIVER'),
@@ -1908,6 +1910,7 @@ server <- shinyServer(function(input, output, session) {
            plotData <- makeRadar(summaryData,'ALL',genders)
          return(plotData)
         },height = 700, width = 1600)
+        
         output[[paste('LRadar',i)]] <- renderPlot({ 
            plotData <- makeRadar(summaryData,'Liver',genders)
            return(plotData)
@@ -1928,28 +1931,21 @@ server <- shinyServer(function(input, output, session) {
            plotData <- makeRadar(summaryData,'Reproductive',genders)
            return(plotData)
         },height = 700, width = 1600)
-        
+       
      }) 
-  }
-  ## Bar Plots##
-  for (i in 1:length(SEX)) { #Overall Summary Radar
-    local({
-      genders <- SEX[i]
-      print('genders')
-      print(genders)
-      print(summaryData)
-      output[[paste('SummaryBar',i)]] <- renderPlot({ 
-        plotData <- makeBarPlot(summaryData,'ALL',genders)
-        return(plotData)
-      })
-      
-      
-    }) 
-  }
-  
-  
-  
-  ## MI Plots ##
+   }
+ 
+ 
+ output$SummaryBar <- renderPlot({
+ #shiny::renderPlot({
+ barData <- makeBarPlot(summaryData, 'ALL')
+ print(barData)
+ #barData<-plot(seq(10))
+ #return(barData)
+  })
+ 
+ 
+ ## MI Plots ##
   output$KMIplot <- renderPlot({ #KIDNEY MI PLOT
     if (length(SEX) == 2){
       KM <- makeMIplot(MIresults,'KIDNEY','KIDNEY',input$dose,'M',
@@ -2233,7 +2229,9 @@ server <- shinyServer(function(input, output, session) {
   })
   #new addition - barplot
   output$ReactSummaryBar<- renderUI({
-    lapply(paste('SummaryBar',1:numSEX$X),plotOutput)
+    #lapply(paste('SummaryBar',1:numSEX$X),plotOutput)
+    #shiny::plotOutput("Barplot")
+    plotOutput('SummaryBar')
   })
     output$ReactLiverRadar <- renderUI({
      lapply(paste('LRadar',1:numSEX$X),plotOutput)
