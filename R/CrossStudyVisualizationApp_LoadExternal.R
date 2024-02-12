@@ -287,7 +287,8 @@ ui <- dashboardPage (
                tabsetPanel(
                  tabPanel('Overall',
                           uiOutput('ReactKidneyRadar')),
-                 tabPanel('Kidney Barplot'),
+                 tabPanel('Kidney Barplot',
+                          uiOutput('ReactKidneyBar')),
                  tabPanel('Clinical Chemistry',
                           plotOutput('KSERLBplot')),
                  tabPanel('Urinalysis',
@@ -309,7 +310,8 @@ ui <- dashboardPage (
                tabsetPanel(
                  tabPanel('Overall',
                           uiOutput('ReactLiverRadar')),
-                 tabPanel('Liver Barplot'),
+                 tabPanel('Liver Barplot',
+                          uiOutput('ReactLiverBar')),
                  tabPanel('Clincal Chemistry',
                           plotOutput('LSERLBplot')),
                  tabPanel('Organ Weights',
@@ -327,7 +329,8 @@ ui <- dashboardPage (
                tabsetPanel(
                  tabPanel('Overall',
                           uiOutput('ReactHemaRadar')),
-                 tabPanel('Hematopoietic Barplot'),
+                 tabPanel('Hematopoietic Barplot',
+                          uiOutput('ReactHemaBar')),
                  tabPanel('Hematology',
                           plotOutput('HHEMELBplot')),
                  tabPanel('Organ Weights',
@@ -351,7 +354,8 @@ ui <- dashboardPage (
                tabsetPanel(
                   tabPanel('Overall',
                            uiOutput('ReactEndoRadar')),
-                  tabPanel('Endocrine Barplot'),
+                  tabPanel('Endocrine Barplot',
+                           uiOutput('ReactEndocrineBar')),
                   tabPanel('Clinical Chemistry',
                            plotOutput('ESERLBplot')),
                   tabPanel('Organ Weights',
@@ -376,7 +380,8 @@ ui <- dashboardPage (
                tabsetPanel(
                   tabPanel('Overall',
                            uiOutput('ReactReproRadar')),
-                  tabPanel('Reproductive Barplot'),
+                  tabPanel('Reproductive Barplot',
+                           uiOutput('ReactReproductiveBar')),
                   tabPanel('Organ Weights',
                            plotOutput('ROMplot',height = 600)),
                   tabPanel('Histopathology',
@@ -1944,6 +1949,26 @@ server <- shinyServer(function(input, output, session) {
  #return(barData)
   })
  
+ output$KidneyBar <- renderPlot({
+   barData <-makeBarPlot(summaryData, 'Kidney')
+   print(barData)
+ })
+ output$LiverBar <- renderPlot({
+   barData <-makeBarPlot(summaryData, 'Liver')
+   print(barData)
+ })
+ output$HemaBar <- renderPlot({
+   barData <-makeBarPlot(summaryData, 'HEMATOPOIETIC')
+   print(barData)
+ })
+ output$EndocrineBar <- renderPlot({
+   barData <-makeBarPlot(summaryData, 'Endocrine')
+   print(barData)
+ })
+ output$ReproductiveBar <- renderPlot({
+   barData <-makeBarPlot(summaryData, 'Reproductive')
+   print(barData)
+ })
  
  ## MI Plots ##
   output$KMIplot <- renderPlot({ #KIDNEY MI PLOT
@@ -2224,21 +2249,39 @@ server <- shinyServer(function(input, output, session) {
   
   
   #Dynamic Sizing of MI and Radar Plots
+  
+  ###new addition - barplot###
+   output$ReactSummaryBar<- renderUI({
+     #lapply(paste('SummaryBar',1:numSEX$X),plotOutput)
+     #shiny::plotOutput("Barplot")
+     plotOutput('SummaryBar')
+   })
+   output$ReactKidneyBar <- renderUI({
+     plotOutput('KidneyBar')
+   })
+   output$ReactLiverBar <- renderUI({
+     plotOutput('LiverBar')
+   })
+   output$ReactHemaBar <- renderUI({
+     plotOutput('HemaBar')
+   })
+   output$ReactEndocrineBar <- renderUI({
+     plotOutput('EndocrineBar')
+   })
+   output$ReactReproductiveBar <- renderUI({
+     plotOutput('ReproductiveBar')
+   })
+   
   output$ReactSummaryRadar <- renderUI({ #Generate one plot per Gender
     lapply(paste('SummaryRadar',1:numSEX$X),plotOutput)
   })
-  #new addition - barplot
-  output$ReactSummaryBar<- renderUI({
-    #lapply(paste('SummaryBar',1:numSEX$X),plotOutput)
-    #shiny::plotOutput("Barplot")
-    plotOutput('SummaryBar')
-  })
-    output$ReactLiverRadar <- renderUI({
+  output$ReactLiverRadar <- renderUI({
      lapply(paste('LRadar',1:numSEX$X),plotOutput)
   })
   output$ReactKidneyRadar <- renderUI({
      lapply(paste('KRadar',1:numSEX$X),plotOutput)
   })
+  
   output$ReactHemaRadar <- renderUI({
      lapply(paste('HRadar',1:numSEX$X),plotOutput)
   })
