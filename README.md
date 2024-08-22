@@ -12,9 +12,15 @@ of a given repeat-dose toxicological study.
 
 # Installation
 
-clone the repo and follow the instructions.  
+```
+# Install from GitHub
+install.packages("devtools")
+devtools::install_github('phuse-org/send-summarizer')
+```
 
+`
 ### for development
+clone the repo and follow the instructions.  
 
 ```
 setwd('send-summarizer')
@@ -23,14 +29,6 @@ sendSummarizer::send_cross_study_app('path_database.db')
 
 ```
 
-### for using the package
-
-```
-setwd('send-summarizer')
-devtools::install(".")
-sendSummarizer::send_cross_study_app('path_database.db')
-
-```
 
 # more example
 
