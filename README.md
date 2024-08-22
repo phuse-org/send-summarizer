@@ -17,7 +17,7 @@ clone the repo and follow the instructions.
 ### for development
 
 ```
-setwd('biocelerate-cross-study/')
+setwd('send-summarizer')
 devtools::load_all(".")
 sendSummarizer::send_cross_study_app('path_database.db')
 
@@ -26,7 +26,7 @@ sendSummarizer::send_cross_study_app('path_database.db')
 ### for using the package
 
 ```
-setwd('biocelerate-cross-study/')
+setwd('send-summarizer')
 devtools::install(".")
 sendSummarizer::send_cross_study_app('path_database.db')
 
