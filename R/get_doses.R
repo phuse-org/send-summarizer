@@ -1,0 +1,322 @@
+#' @title filter out tk and recovery animal
+#' @param studyid Mandatory, character \cr
+#'   Studyid number
+#' @param path_db Mandatory, character \cr
+#'   path of database
+#' @return dataframe
+#'
+#' @examples
+#' \dontrun{
+#' get_doses(studyid='1234123', path_db='path/to/database.db')
+#' }
+#' @export
+
+get_doses <- function(studyid, path_db,xpt_dir=NULL) {
+
+  if(!is.null(xpt_dir)) {
+bw <- haven::read_xpt(fs::path(xpt_dir,'bw.xpt'))
+dm <- haven::read_xpt(fs::path(xpt_dir,'dm.xpt'))
+ds <- haven::read_xpt(fs::path(xpt_dir,'ds.xpt'))
+ts <- haven::read_xpt(fs::path(xpt_dir,'ts.xpt'))
+tx <- haven::read_xpt(fs::path(xpt_dir,'tx.xpt'))
+pooldef <- haven::read_xpt(fs::path(xpt_dir,'pooldef.xpt'))
+pp <- haven::read_xpt(fs::path(xpt_dir,'pp.xpt'))
+## bw <- haven::read_xpt(fs::path(xpt_dir,'bw.xpt'))
+
+
+  } else {
+
+  studyid <- as.character(studyid)
+  path <- path_db
+  con <- DBI::dbConnect(DBI::dbDriver('SQLite'), dbname = path)
+# function for domain
+  con_db <- function(domain){
+    domain <- toupper(domain)
+    stat <- paste0('SELECT * FROM ', domain, " WHERE STUDYID = (:x)")
+    domain <- DBI::dbGetQuery(con,
+                              statement = stat,
+                              params=list(x=studyid))
+    domain
+}
+
+#Pull relevant domain data for each domain
+  bw <- con_db('bw')
+  dm <- con_db('dm')
+  ds <- con_db('ds')
+  ts <- con_db('ts')
+  tx <- con_db('tx')
+  pooldef <- con_db('pooldef')
+  pp <- con_db('pp')
+
+  }
+
+
+# # Combine into list of assigned name
+  studyData <- list('bw' = bw, 'dm' = dm, 'ds' = ds,
+                    'pooldef' = pooldef,
+                    'ts' = ts,  'tx' = tx, 'pp' = pp)
+    #..Creation of compilation data...(Compilation of DM Data).........
+    # Step-1 :: # CompileData is basically the compilation of DM data
+    CompileData <- data.frame(STUDYID = NA, Species = NA,
+                              USUBJID = NA, SEX = NA, ARMCD = NA, SETCD = NA)
+
+    #Pull all of the relevant DM Data
+    Species <- ts$TSVAL[which(ts$TSPARMCD == "SPECIES")]
+    TRTName <- ts$TSVAL[which(ts$TSPARMCD == "TRT")]
+    Duration <-ts$TSVAL[which(ts$TSPARMCD == "DOSDUR")]
+
+    # Convert duration to days
+    if (any(grepl("W",Duration)) ==TRUE){
+      days <- as.numeric(gsub("\\D","",Duration))*7
+    } else if (any(grepl("M",Duration)) == TRUE){
+      days <- as.numeric(gsub("\\D","",Duration))*7*30
+    } else {
+      days <- as.numeric(gsub("\\D","",Duration))
+    }
+    Duration <- paste0(days,"D")
+
+    # Make StudyID
+    STUDYID <- unique(ts$STUDYID)
+
+    # CREATE DM DATA
+    DMData <- data.frame(STUDYID = rep(STUDYID, length(dm$USUBJID)),
+                         Species = rep(Species, length(dm$USUBJID)),
+                         USUBJID = dm$USUBJID,
+                         SEX = dm$SEX,
+                         ARMCD = dm$ARMCD,
+                         SETCD = dm$SETCD)
+
+    #Add to CompileData
+    CompileData <- rbind(CompileData, DMData)
+
+    # Remove NAs from the first line
+    CompileData <- stats::na.omit(CompileData)
+
+    # Create a copy of CompileData which will not
+  # changes with changing the CompileData
+    CompileData_copy <- data.frame(CompileData)
+
+
+    # Step-2 :: # REMOVE THE RECOVERY ANIMALS from "CompileData"...<>"Recovery
+  #  animals" cleaning.. using "DS domain"
+    ## cat("Displaying unique values in ds$DSDECOD before filtering :\n")
+    ## print(unique(ds$DSDECOD))
+
+    # filter for specific "DSDECOD" values...( Keep the mentioned four ) ...
+    filtered_ds <- ds %>%
+      dplyr::filter(DSDECOD %in% c('TERMINAL SACRIFICE',
+                                   'MORIBUND SACRIFICE',
+                                   'REMOVED FROM STUDY ALIVE',
+                                   'NON-MORIBUND SACRIFICE'))
+    # check the unique value in "DSDECOD" column
+    ## cat("Displaying unique values in ds$DSDECOD after filtering:\n")
+    ## print(unique(filtered_ds$DSDECOD))
+
+    #Filter "CompileData" to keep rows where USUBJID is in "filtered_ds"~~
+
+    # Filter "CompileData" to keep rows where USUBJID is in "filtered_ds"
+  # meaning removing recovery animals
+    recovery_cleaned_CompileData <- CompileData %>%
+      dplyr::filter(USUBJID %in% filtered_ds$USUBJID)
+
+
+    # Step-3 :: # REMOVE THE TK ANIMALS IF SPECIES IS RAT from the
+   # "recovery_cleaned_CompileData"
+    # Initialize an empty data frame to store the results
+    tK_animals_df <- data.frame(PP_PoolID = character(), STUDYID = character(),
+                                USUBJID = character(), POOLID = character(),
+                                stringsAsFactors = FALSE)
+
+    # Initialize a data frame to keep track of studies with no POOLID
+    no_poolid_studies <- data.frame(STUDYID = character(),
+                                    stringsAsFactors = FALSE)
+
+    # check for the species [# Check if the current study is a rat]
+  # [{# Convert Species to lowercase for case-insensitive comparison}]
+
+    Species_lower <- tolower(Species)
+
+    if ("rat" %in% Species_lower) {
+      # Create TK individuals for "Rat" studies [# Retrieve unique
+      # pool IDs (TKPools) from pp table]
+      TKPools <- unique(pp$POOLID)
+
+      # Check if TKPools is not empty
+      if (length(TKPools) > 0) {
+# For each pool ID in TKPools, retrieve corresponding rows from pooldef table
+        for (pool_id in TKPools) {
+          pooldef_data <- pooldef[pooldef$POOLID == pool_id, ]
+
+          # Create a temporary data frame if pooldef_data is not empty
+          if (nrow(pooldef_data) > 0) {
+            temp_df <- data.frame(PP_PoolID = pool_id,
+                                  STUDYID = pooldef_data$STUDYID,
+                                  USUBJID = pooldef_data$USUBJID,
+                                  POOLID = pooldef_data$POOLID,
+                                  stringsAsFactors = FALSE)
+
+            # Append the temporary data frame to the results data frame
+            tK_animals_df <- rbind(tK_animals_df, temp_df)
+          }
+        }
+      } else {
+        # Retrieve STUDYID for the current study
+        current_study_id <- bw$STUDYID[1]
+
+        # Add study to no_poolid_studies dataframe
+        no_poolid_studies <- rbind(no_poolid_studies,
+                                   data.frame(STUDYID = current_study_id,
+                                              stringsAsFactors = FALSE))
+      }
+
+    } else {
+      # Create a empty data frame named "tK_animals_df"
+      tK_animals_df <- data.frame(PP_PoolID = character(),
+                                  STUDYID = character(),
+                                  USUBJID = character(),
+                                  POOLID = character(),
+                                  stringsAsFactors = FALSE)
+    }
+
+
+    # Subtract "TK_animals_df" data from the "recovery_cleaned_CompileData"
+ cleaned_CompileData <- recovery_cleaned_CompileData[
+   !(recovery_cleaned_CompileData$USUBJID %in% tK_animals_df$USUBJID),]
+
+
+
+    #.."vehicle" and "HD animals" selection "for"cleaned_CompileData"
+
+    # tx table  filter by TXPARMCD
+  cleaned_CompileData_filtered_tx <- tx %>%
+    dplyr::filter(TXPARMCD == "TRTDOS")
+
+
+    # Assign the dose level for
+  # "cleaned_CompileData_filtered_tx"
+
+    # Step 1:  Create a unified separator pattern
+    clean_pattern <- ";|\\||-|/|:|,"
+
+    # Split and expand the TXVAL column, and add row_state
+  clean_tx_expanded <- cleaned_CompileData_filtered_tx %>%
+    dplyr::mutate(
+             is_split = stringr::str_detect(TXVAL,
+                                            clean_pattern),
+             TXVAL = strsplit(as.character(TXVAL),
+                              clean_pattern)
+           ) %>%
+    tidyr::unnest(TXVAL) %>%
+    dplyr::mutate(
+             TXVAL = as.numeric(TXVAL),
+             row_state = ifelse(is_split, "new_row", "old_row")
+           ) %>%
+    dplyr::select(-is_split) # Remove the is_split column
+
+    #Adding dose_ranking
+
+    # Initialize an empty data frame for dose_ranking
+    dose_ranking <- data.frame()
+
+    dose_ranking_prob_study <- data.frame()
+
+  ## browser()
+    if (TRUE) {
+      study_data <- clean_tx_expanded
+
+      # Check if all TXVAL values are NA for the STUDYID
+      if (all(is.na(study_data$TXVAL))) {
+        dose_ranking_prob_study <- rbind(dose_ranking_prob_study, study_data)
+      }
+      # Check if all SETCD values are the same for the STUDYID
+      else if (dplyr::n_distinct(study_data$SETCD) == 1) {
+        dose_ranking_prob_study <- rbind(dose_ranking_prob_study, study_data)
+      } else {
+        # Process for lowest TXVAL
+        lowest_txval <- min(study_data$TXVAL, na.rm = TRUE)
+        lowest_data <- study_data %>%
+          dplyr::filter(TXVAL == lowest_txval) %>%
+          dplyr::arrange(SETCD)
+
+        if (nrow(lowest_data) == 1) {
+          dose_ranking <- rbind(dose_ranking, lowest_data)
+
+        } else {
+          # Select the first old_row if available, else the first new_row
+          selected_lowest <- dplyr::filter(lowest_data,
+                                           row_state == "old_row") %>%
+            dplyr::slice(1)
+          if (nrow(selected_lowest) > 0) {
+            dose_ranking <- rbind(dose_ranking, selected_lowest)
+          } else {
+            selected_lowest <- dplyr::filter(lowest_data,
+                                             row_state == "new_row") %>%
+              dplyr::slice(1)
+            dose_ranking <- rbind(dose_ranking, selected_lowest)
+          }
+        }
+
+        # Process for highest TXVAL
+        highest_txval <- max(study_data$TXVAL, na.rm = TRUE)
+        highest_data <- study_data %>%
+          dplyr::filter(TXVAL == highest_txval) %>%
+          dplyr::arrange(SETCD)
+
+        if (nrow(highest_data) == 1) {
+          dose_ranking <- rbind(dose_ranking, highest_data)
+        }else if (nrow(highest_data) > 1) {
+          selected_highest <- dplyr::filter(highest_data,
+                                            row_state == "old_row") %>%
+            dplyr::slice(1)
+          if (nrow(selected_highest) > 0) {
+            dose_ranking <- rbind(dose_ranking, selected_highest)
+          } else {
+            # If no old_row is found, select the first new_row
+            selected_highest <- dplyr::filter(highest_data,
+                                              row_state == "new_row") %>%
+              dplyr::slice(1)
+            if (nrow(selected_highest) > 0) {
+              dose_ranking <- rbind(dose_ranking, selected_highest)
+
+            }
+          }
+        }
+      }
+    }
+
+    #ADD DOSE_RANKING column in "selected_rows" data frame
+    DOSE_RANKED_selected_rows <- dose_ranking %>%
+      dplyr::group_by(STUDYID) %>%
+      dplyr::mutate(
+        MinTXVAL = min(TXVAL),
+        MaxTXVAL = max(TXVAL),
+        DOSE_RANKING = dplyr::case_when(
+          TXVAL == MinTXVAL & TXVAL == MaxTXVAL ~ "Both",
+          TXVAL == MinTXVAL ~ "vehicle",
+          TXVAL == MaxTXVAL ~ "HD",
+          TRUE ~ "Intermediate"
+        )
+      ) %>%
+      dplyr::select(-MinTXVAL, -MaxTXVAL) %>%
+      dplyr::ungroup()
+
+    #Merging "DOSE_RANKED_selected_rows" and "cleaned_CompileData" data framed
+    dose_rank_comp_data <- dplyr::inner_join(cleaned_CompileData,
+                                             DOSE_RANKED_selected_rows,
+                                             by = c("STUDYID", "SETCD"))
+
+    # rename the Data frame
+    master_CompileData1 <- dose_rank_comp_data [,c("STUDYID",
+                                                   "USUBJID",
+                                                   "Species",
+                                                   "SEX",
+                                                   "DOSE_RANKING",
+                                                   "SETCD")]
+
+    # Rename the "DOSE_RANKING" column to ARMCD
+    # Rename "DOSE_RANKING" to "ARMCD" in master_CompileData
+    master_CompileData <- master_CompileData1 %>%
+      dplyr::rename(ARMCD = DOSE_RANKING)
+
+  master_CompileData
+}

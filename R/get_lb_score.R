@@ -1,0 +1,328 @@
+
+#' @title get LB score for a given studyid
+#' @param studyid Mandatory, character \cr
+#'   Studyid number
+#' @param path_db Mandatory, character \cr
+#'   path of database
+#' @return score
+#'
+#' @examples
+#' \dontrun{
+#' get_lb_score(studyid='1234123', path_db='path/to/database.db')
+#' }
+#' @export
+
+get_lb_score <- function(studyid, path_db) {
+
+studyid <- as.character(studyid)
+path <- path_db
+  con <- DBI::dbConnect(DBI::dbDriver('SQLite'), dbname = path)
+    lb <- DBI::dbGetQuery(con, statement = "SELECT * FROM LB WHERE STUDYID = (:x)",
+                                params = list(x=studyid))
+    organTESTCDlist <- list('LIVER' = c('SERUM | ALT',
+                                        'SERUM | AST',
+                                        'SERUM | ALP',
+                                        'SERUM | GGT',
+                                        'SERUM | BILI',
+                                        'SERUM | ALB',
+                                        'PLASMA | ALT',
+                                        'PLASMA | AST',
+                                        'PLASMA | ALP',
+                                        'PLASMA | GGT',
+                                        'PLASMA | BILI',
+                                        'PLASMA | ALB',
+                                        'WHOLE BLOOD | ALT',
+                                        'WHOLE BLOOD | AST',
+                                        'WHOLE BLOOD | ALP',
+                                        'WHOLE BLOOD | GGT',
+                                        'WHOLE BLOOD | BILI',
+                                        'WHOLE BLOOD | ALB'))
+
+    #Make LB Data Data Frame to Hold Information
+    LBData <- data.frame("STUDYID" = NA,"USUBJID" = NA,"LBSPEC" = NA,"LBTESTCD" = NA,
+                         "LBSTRESN" = NA, "VISITDY" = NA)
+
+    # for (Name in unique(filtered_combined_lb$STUDYID)) {
+    # Filter the data for the current STUDYID
+    study_data_LB <- lb
+
+    # Check if LBDY column exists and process accordingly
+    if ("LBDY" %in% names(study_data_LB)) {
+      LBD <- study_data_LB %>%
+        dplyr::filter(LBDY >= 1) %>%
+        dplyr::select(STUDYID,USUBJID, LBSPEC, LBTESTCD, LBSTRESN, LBDY)
+
+      colnames(LBD) <- c("STUDYID", "USUBJID", "LBSPEC", "LBTESTCD", "LBSTRESN", "VISITDY")
+
+      # Convert LBCAT to LBSPEC if LBSPEC is NA
+      if (all(is.na(LBD$LBSPEC))) {
+        LBD$LBSPEC <- study_data_LB$LBCAT[study_data_LB$LBDY >= 1]
+
+        if (any(c("HEMATOLOGY", "Hematology","hematology") %in% levels(LBD$LBSPEC))){
+          levels(LBD$LBSPEC)[match(c("HEMATOLOGY", "Hematology","hematology"),
+                                   levels(LBD$LBSPEC))] <- "WHOLE BLOOD"
+        }
+        if (any(c("CLINICAL CHEMISTRY","Clinical Chemistry") %in% levels(LBD$LBSPEC))){
+          levels(LBD$LBSPEC)[match(c("CLINICAL CHEMISTRY","Clinical Chemistry"),
+                                   levels(LBD$LBSPEC))] <- "SERUM"
+        }
+        if (any(c("URINALYSIS","Urinalysis") %in% levels(LBD$LBSPEC))){
+          levels(LBD$LBSPEC)[match(c("URINALYSIS","Urinalysis"),
+                                   levels(LBD$LBSPEC))] <- "URINE"
+        }
+      }
+    } else {
+      # If LBDY column does not exist, handle accordingly
+      LBD <- study_data_LB[which(study_data_LB$VISITDY >= 1),
+                           c("STUDYID","USUBJID","LBSPEC","LBTESTCD","LBSTRESN", "VISITDY")]
+    }
+
+    # Add to LBData
+    LBData <- rbind(LBData, LBD)
+
+    # Remove rows with all NAs
+    LBData <- stats::na.omit(LBData)
+
+    # Concatenate LBSPEC and LBTESTCD
+    LBData$LBTESTCD <- paste(LBData$LBSPEC, LBData$LBTESTCD, sep = ' | ')
+
+    #Remove Not Included Tests...............................................................
+    # This step remove not rows matching test from ogransystem
+    test_cleaned_LBData <- LBData[LBData$LBTESTCD %in% organTESTCDlist[['LIVER']],]
+
+    # Create a new data frame with the row having the max VISITDY for each USUBJID and LBTESTCD combination
+    max_visitdy_df <- test_cleaned_LBData %>%
+      dplyr::group_by(USUBJID, LBTESTCD) %>%
+      dplyr::filter(VISITDY == max(VISITDY, na.rm = TRUE)) %>%
+      dplyr::ungroup()
+
+  # get master compile data
+  master_CompileData <- get_compile_data(studyid, path_db)
+    #<><><><><><><><><><><><><><><><>... Remove TK animals and Recovery animals......<><><><><><>.............
+    #<><><><><><><><> master_CompileData is free of TK animals and Recovery animals<><><><><><><><><><><><><><>
+    # Remove the TK animals and Recovery animals
+    LB_tk_recovery_filtered <- max_visitdy_df %>%
+      dplyr::filter(USUBJID %in% master_CompileData$USUBJID)
+
+    # Perform a left join to match USUBJID and get ARMCD ## 020924
+    #-inner_join() used instead of left_join()#199
+    LB_tk_recovery_filtered_ARMCD <- LB_tk_recovery_filtered %>%
+      dplyr::inner_join(master_CompileData %>% dplyr::select(USUBJID, ARMCD), by = "USUBJID")
+
+
+    #::::::::::::::::::::::::::::: "zScore Calculation" for LB data::::::::::::::::::::::::::::::::::::::::::::::::::::
+    # First subset the LB_tk_recovery_filtered_ARMCD data frame .....................................................
+
+    # ........................Filtering data for each unique "LBTESTCD" value.........................
+
+    # 1. Sub-setting for 'SERUM | ALT' data frame for "LBzScore Calculation" for...'SERUM | ALT'...........
+    df_serum_alt <- LB_tk_recovery_filtered_ARMCD %>%
+      dplyr::filter(LBTESTCD == 'SERUM | ALT' | LBTESTCD == 'PLASMA | ALT'| LBTESTCD == 'WHOLE BLOOD | ALT')
+
+    # calculate the zscore of 'SERUM | ALT'
+    zscore_serum_alt <- df_serum_alt %>%
+      dplyr::group_by(STUDYID) %>%
+      dplyr::mutate(
+        mean_vehicle_alt = mean(LBSTRESN[ARMCD == "vehicle"], na.rm = TRUE),
+        sd_vehicle_alt = stats::sd(LBSTRESN[ARMCD == "vehicle"], na.rm = TRUE)
+      ) %>%
+      dplyr::ungroup() %>%
+      dplyr::mutate(
+        alt_zscore = (LBSTRESN - mean_vehicle_alt) / sd_vehicle_alt
+      )%>%
+      dplyr::mutate(alt_zscore = abs(alt_zscore))
+
+    # averaged zscore per STUDYID for 'SERUM | ALT'
+    serum_alt_final_zscore <- zscore_serum_alt %>%
+      dplyr::filter(ARMCD == "HD") %>%  # Step 1: Filter for HD
+      dplyr::group_by(STUDYID) %>%  # Step 2: Group by STUDYID
+      dplyr::summarise(
+        avg_alt_zscore = mean(alt_zscore, na.rm = TRUE),  # Step 3: Average alt_zscore
+        LBTESTCD = dplyr::first(LBTESTCD)  # Include LBTESTCD in the summarized data
+      ) %>% dplyr::select (STUDYID, avg_alt_zscore )
+
+
+    # 2. Sub-setting for 'SERUM | AST' data frame for "BWzScore Calculation" for...'SERUM | AST'...........
+    df_serum_ast <- LB_tk_recovery_filtered_ARMCD %>%
+      dplyr::filter(LBTESTCD == 'SERUM | AST' | LBTESTCD == 'PLASMA | AST'| LBTESTCD == 'WHOLE BLOOD | AST')
+
+    # calculate the zscore of 'SERUM | AST'
+    zscore_serum_ast <- df_serum_ast %>%
+      dplyr::group_by(STUDYID) %>%
+      dplyr::mutate(
+        mean_vehicle_ast = mean(LBSTRESN[ARMCD == "vehicle"], na.rm = TRUE),
+        sd_vehicle_ast = stats::sd(LBSTRESN[ARMCD  == "vehicle"], na.rm = TRUE)
+      ) %>%
+      dplyr::ungroup() %>%
+      dplyr::mutate(
+        ast_zscore = (LBSTRESN - mean_vehicle_ast) / sd_vehicle_ast
+      )%>%
+      dplyr::mutate(ast_zscore = abs(ast_zscore))
+
+    # averaged zscore per STUDYID for 'SERUM | AST'
+    serum_ast_final_zscore <- zscore_serum_ast %>%
+      dplyr::filter(ARMCD  == "HD") %>%  # Step 1: Filter for HD
+      dplyr::group_by(STUDYID) %>%  # Step 2: Group by STUDYID
+      dplyr::summarise(
+        avg_ast_zscore = mean(ast_zscore, na.rm = TRUE),  # Step 3: Average alt_zscore
+        LBTESTCD = dplyr::first(LBTESTCD)  # Include LBTESTCD in the summarized data
+      )  %>% dplyr::select(STUDYID, avg_ast_zscore)
+
+    # 3........Sub-setting for 'SERUM | ALP' data frame for "BWzScore Calculation" for...'SERUM | ALP'...........
+    df_serum_alp <- LB_tk_recovery_filtered_ARMCD %>%
+      dplyr::filter(LBTESTCD == 'SERUM | ALP'| LBTESTCD == 'PLASMA | ALP'| LBTESTCD == 'WHOLE BLOOD | ALP')
+
+    # calculate the zscore of 'SERUM | ALP'
+    zscore_serum_alp <- df_serum_alp %>%
+      dplyr::group_by(STUDYID) %>%
+      dplyr::mutate(
+        mean_vehicle_alp = mean(LBSTRESN[ARMCD == "vehicle"], na.rm = TRUE),
+        sd_vehicle_alp = stats::sd(LBSTRESN[ARMCD == "vehicle"], na.rm = TRUE)
+      ) %>%
+      dplyr::ungroup() %>%
+      dplyr::mutate(
+        alp_zscore = (LBSTRESN - mean_vehicle_alp) / sd_vehicle_alp
+      )%>%
+      dplyr::mutate(alp_zscore = abs(alp_zscore))
+
+    # averaged zscore per STUDYID for 'SERUM | ALP'
+    serum_alp_final_zscore <- zscore_serum_alp %>%
+      dplyr::filter(ARMCD == "HD") %>%  # Step 1: Filter for HD
+      dplyr::group_by(STUDYID) %>%  # Step 2: Group by STUDYID
+      dplyr::summarise(
+        avg_alp_zscore = mean(alp_zscore, na.rm = TRUE),  # Step 3: Average alt_zscore
+        LBTESTCD = dplyr::first(LBTESTCD)  # Include LBTESTCD in the summarized data
+      ) %>% dplyr::select (STUDYID, avg_alp_zscore)
+
+    # 4. Sub-setting for 'SERUM | GGT' data frame for "BWzScore Calculation" for...'SERUM | GGT'...........
+    df_serum_ggt <- LB_tk_recovery_filtered_ARMCD %>%
+      dplyr::filter(LBTESTCD == 'SERUM | GGT'| LBTESTCD == 'PLASMA | GGT'| LBTESTCD == 'WHOLE BLOOD | GGT')
+
+    # calculate the zscore of 'SERUM | GGT'
+    zscore_serum_ggt <- df_serum_ggt %>%
+      dplyr::group_by(STUDYID) %>%
+      dplyr::mutate(
+        mean_vehicle_ggt = mean(LBSTRESN[ARMCD == "vehicle"], na.rm = TRUE),
+        sd_vehicle_ggt = stats::sd(LBSTRESN[ARMCD == "vehicle"], na.rm = TRUE)
+      ) %>%
+      dplyr::ungroup() %>%
+      dplyr::mutate(
+        ggt_zscore = (LBSTRESN - mean_vehicle_ggt) / sd_vehicle_ggt
+      )%>%
+      dplyr::mutate(ggt_zscore = abs(ggt_zscore))
+
+    # averaged zscore per STUDYID for 'SERUM | GGT'
+    serum_ggt_final_zscore <- zscore_serum_ggt %>%
+      dplyr::filter(ARMCD == "HD") %>%  # Step 1: Filter for HD
+      dplyr::group_by(STUDYID) %>%  # Step 2: Group by STUDYID
+      dplyr::summarise(
+        avg_ggt_zscore = mean(ggt_zscore, na.rm = TRUE),  # Step 3: Average alt_zscore
+        LBTESTCD = dplyr::first(LBTESTCD)  # Include LBTESTCD in the summarized data
+      ) %>% dplyr::select(STUDYID, avg_ggt_zscore)
+
+    #5.  Sub-setting for 'SERUM | BILI' data frame for "BWzScore Calculation" for...'SERUM | BILI'...........
+    df_serum_bili <- LB_tk_recovery_filtered_ARMCD %>%
+      dplyr::filter(LBTESTCD == 'SERUM | BILI'| LBTESTCD == 'PLASMA | BILI'| LBTESTCD == 'WHOLE BLOOD | BILI')
+
+    # calculate the zscore of 'SERUM | BILI'
+    zscore_serum_bili <- df_serum_bili %>%
+      dplyr::group_by(STUDYID) %>%
+      dplyr::mutate(
+        mean_vehicle_bili = mean(LBSTRESN[ARMCD == "vehicle"], na.rm = TRUE),
+        sd_vehicle_bili = stats::sd(LBSTRESN[ARMCD == "vehicle"], na.rm = TRUE)
+      ) %>%
+      dplyr::ungroup() %>%
+      dplyr::mutate(
+        bili_zscore = (LBSTRESN - mean_vehicle_bili) / sd_vehicle_bili
+      )%>%
+      dplyr::mutate(bili_zscore = abs(bili_zscore))
+
+    # averaged zscore per STUDYID for 'SERUM | BILI'
+    serum_bili_final_zscore <- zscore_serum_bili %>%
+      dplyr::filter(ARMCD == "HD") %>%  # Step 1: Filter for HD
+      dplyr::group_by(STUDYID) %>%  # Step 2: Group by STUDYID
+      dplyr::summarise(
+        avg_bili_zscore = mean(bili_zscore, na.rm = TRUE),  # Step 3: Average alt_zscore
+        LBTESTCD = dplyr::first(LBTESTCD)  # Include LBTESTCD in the summarized data
+      )  %>% dplyr::select(STUDYID, avg_bili_zscore)
+
+    # 6. Sub-setting for 'SERUM | ALB' data frame for "BWzScore Calculation" for...'SERUM | ALB'...........
+    df_serum_alb <- LB_tk_recovery_filtered_ARMCD %>%
+      dplyr::filter(LBTESTCD == 'SERUM | ALB'| LBTESTCD == 'PLASMA | ALB'| LBTESTCD == 'WHOLE BLOOD | ALB')
+
+    # calculte the zscore of 'SERUM | ALB'
+    zscore_serum_alb <- df_serum_alb %>%
+      dplyr::group_by(STUDYID) %>%
+      dplyr::mutate(
+        mean_vehicle_alb = mean(LBSTRESN[ARMCD == "vehicle"], na.rm = TRUE),
+        sd_vehicle_alb = stats::sd(LBSTRESN[ARMCD == "vehicle"], na.rm = TRUE)
+      ) %>%
+      dplyr::ungroup() %>%
+      dplyr::mutate(
+        alb_zscore = (LBSTRESN - mean_vehicle_alb) / sd_vehicle_alb
+      )%>%
+      dplyr::mutate(alb_zscore = abs(alb_zscore))
+
+    # averaged zscore per STUDYID for 'SERUM | ALB'
+    serum_alb_final_zscore <- zscore_serum_alb %>%
+      dplyr::filter(ARMCD == "HD") %>%  # Step 1: Filter for HD
+      dplyr::group_by(STUDYID) %>%  # Step 2: Group by STUDYID
+      dplyr::summarise(
+        avg_alb_zscore = mean(alb_zscore, na.rm = TRUE),  # Step 3: Average alt_zscore
+        LBTESTCD = dplyr::first(LBTESTCD)  # Include LBTESTCD in the summarized data
+      ) %>% dplyr::select(STUDYID, avg_alb_zscore)
+
+    # Merging----------LB----zscores------------values---------------------------
+    LB_zscore_merged_df <- serum_alb_final_zscore %>%
+      dplyr::full_join(serum_ast_final_zscore, by = "STUDYID") %>%
+      dplyr::full_join(serum_alp_final_zscore, by = "STUDYID") %>%
+      dplyr::full_join(serum_alt_final_zscore, by = "STUDYID") %>%
+      dplyr::full_join(serum_bili_final_zscore, by = "STUDYID") %>%
+      dplyr::full_join(serum_ggt_final_zscore, by = "STUDYID")
+
+
+    # Replace Inf, -Inf, and NaN with NA in the selected columns
+    selected_cols <- c("avg_alb_zscore", "avg_ast_zscore", "avg_alp_zscore", "avg_alt_zscore", "avg_bili_zscore", "avg_ggt_zscore")
+    LB_zscore_merged_df[selected_cols] <- lapply(LB_zscore_merged_df[selected_cols], function(x) replace(x, is.infinite(x) | is.nan(x), NA))
+
+    # add the LB_zscore_merged_df to master_LB_list
+
+  ## LB_zscore_merged_df
+
+master_LB_list <- data.frame(STUDYID = NA, avg_alb_zscore = NA, avg_ast_zscore = NA, avg_alp_zscore = NA,
+                             avg_alt_zscore = NA, avg_bili_zscore = NA, avg_ggt_zscore = NA)
+##     # Add LB_zscore_merged_df to master dataframe
+    master_LB_list <- dplyr::bind_rows(master_LB_list, LB_zscore_merged_df)
+
+##     # Calculate the average for each row, ignoring NA values
+    LB_zscore_merged_df$avg_all_LB_zscores <- rowMeans(LB_zscore_merged_df[selected_cols], na.rm = TRUE)
+
+##     # select the specific columns for calculation
+    LB_all_liver_zscore_averaged <- LB_zscore_merged_df %>% dplyr::select (STUDYID, avg_all_LB_zscores)
+  ## LB_all_liver_zscore_averaged
+
+
+##     # Assigning the new variables
+##
+    LB_final_score <- LB_all_liver_zscore_averaged
+
+##     # Append the LB_zscore to the "FOUR_Liver_Score" data frame
+##     # Create "LB_df" for FOUR_Liver_Score
+##     LB_df <- LB_final_score %>% rename(LB_score = avg_all_LB_zscores)
+
+##     # Extract the LB_score value for the current STUDYID from LB_df
+##     calculated_LB_value <- LB_df$LB_score[LB_df$STUDYID == unique(ts$STUDYID)]
+
+##     # Update the LB_score value in FOUR_Liver_Score for the current STUDYID
+##     FOUR_Liver_Score$LB_score[FOUR_Liver_Score$STUDYID == unique(ts$STUDYID)] <- calculated_LB_value
+
+##     # Score the LB_score values in the FOUR_Liver_Score data frame and fill "scored_LBScore" column
+##
+score_final <- LB_all_liver_zscore_averaged$avg_all_LB_zscores
+    LB_final_score$zscore <- ifelse(score_final >= 3, 3,
+                                              ifelse(score_final >= 2, 2,
+                                                     ifelse(score_final >= 1, 1, 0)))
+##   FOUR_Liver_Score
+
+
+}

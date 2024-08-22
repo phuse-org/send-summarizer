@@ -1,0 +1,401 @@
+
+#' @title get MI score for a given studyid
+#' @param studyid Mandatory, character \cr
+#'   Studyid number
+#' @param path_db Mandatory, character \cr
+#'   path of database
+#' @return score
+#'
+#' @examples
+#' \dontrun{
+#' get_mi_score(studyid='1234123', path_db='path/to/database.db')
+#' }
+#' @export
+
+get_mi_score <- function(studyid, path_db) {
+studyid <- as.character(studyid)
+path <- path_db
+  con <- DBI::dbConnect(DBI::dbDriver('SQLite'), dbname = path)
+  mi <- DBI::dbGetQuery(con, statement = "SELECT * FROM MI WHERE STUDYID = (:x)",
+                        params = list(x=studyid))
+    # Initialize the  MI_final_score DATA FRAME
+    MI_final_score <- data.frame( STUDYID = unique(mi$STUDYID), avg_MI_score = NA )
+
+    #Make Data Frame to hold MI Information for the STUDY available in combined_mi for repeat dose
+    MIData <- data.frame("USUBJID" = NA,"MISTRESC" = NA,"MISEV" = NA,
+                         "MISPEC" = NA)
+
+    # Filter the data for the current STUDYID
+    mi_study_data <- mi
+
+    #Pull all of the relevant MI Data using Grepl
+    MBD <- mi_study_data[grepl("LIVER", mi_study_data$MISPEC, ignore.case = TRUE),
+                         c("USUBJID", "MISTRESC","MISEV","MISPEC")]
+    #Add to CompileData
+    MIData <- rbind(MIData, MBD)
+
+    # Convert empty strings to NA in the MISEV column
+    MIData$MISEV[MIData$MISEV == ""] <- NA
+
+    #MAKE NA Sev's a 0
+    MIData$MISEV <-  MIData$MISEV %>% tidyr::replace_na("0")
+    MIData <- stats::na.omit(MIData)
+
+    MIData$MISTRESC <- toupper(MIData$MISTRESC)
+
+    # # Remove the "Normal" values from the "MISTRESC" column(Subset MIData to remove rows where MISTRESC is "Normal")
+    # NORMAL_DATA <- MIData[MIData$MISTRESC == "NORMAL", ] # get the rows having value "Normal"
+    #
+    # MIData <- MIData[MIData$MISTRESC != "NORMAL", ]
+
+    #Convert Severity
+    # Replacing various patterns in MISEV with numeric strings
+
+    MIData$MISEV <- stringr::str_replace_all(MIData$MISEV, "\\b1\\s*OF\\s*4\\b", "2")
+    MIData$MISEV <- stringr::str_replace_all(MIData$MISEV, "\\b2\\s*OF\\s*4\\b", "3")
+    MIData$MISEV <- stringr::str_replace_all(MIData$MISEV, "\\b3\\s*OF\\s*4\\b", "4")
+    MIData$MISEV <- stringr::str_replace_all(MIData$MISEV, "\\b4\\s*OF\\s*4\\b", "5")
+    MIData$MISEV <- stringr::str_replace_all(MIData$MISEV, "1 OF 5", "1")
+    MIData$MISEV <- stringr::str_replace_all(MIData$MISEV, "MINIMAL", "1")
+    MIData$MISEV <- stringr::str_replace_all(MIData$MISEV, "2 OF 5", "2")
+    MIData$MISEV <- stringr::str_replace_all(MIData$MISEV, "MILD", "2")
+    MIData$MISEV <- stringr::str_replace_all(MIData$MISEV, "3 OF 5", "3")
+    MIData$MISEV <- stringr::str_replace_all(MIData$MISEV, "MODERATE", "3")
+    MIData$MISEV <- stringr::str_replace_all(MIData$MISEV, "4 OF 5", "4")
+    MIData$MISEV <- stringr::str_replace_all(MIData$MISEV, "MARKED", "4")
+    MIData$MISEV <- stringr::str_replace_all(MIData$MISEV, "5 OF 5", "5")
+    MIData$MISEV <- stringr::str_replace_all(MIData$MISEV, "SEVERE", "5")
+
+    testing_MIData <- MIData
+
+    # Converting MISEV to an ordered factor
+    MIData$MISEV <- ordered(MIData$MISEV, levels= c("0","1", "2", "3", "4","5"))
+
+    # Replace NA values in MISEV with "0"
+    MIData$MISEV = MIData$MISEV %>% tidyr::replace_na("0")
+
+    # Make all the MISPEC value = LIVER
+    # replace all the value to Liver which will replace "LIVER/GALLBLADDER" to "LIVER"
+    MIData$MISPEC <- "LIVER" # replace the "LIVER/GALLBLADDER" to "LIVER"
+
+    #Combine Levels on Findings
+    MIData$MISTRESC <- as.factor(MIData$MISTRESC)
+    levels(MIData$MISTRESC)[levels(MIData$MISTRESC) == "CELL DEBRIS"] <- "CELLULAR DEBRIS"
+    levels(MIData$MISTRESC)[levels(MIData$MISTRESC) == "Infiltration, mixed cell"] <- "Infiltrate"
+    levels(MIData$MISTRESC)[levels(MIData$MISTRESC) == "Infiltration, mononuclear cell"] <- "Infiltrate"
+    levels(MIData$MISTRESC)[levels(MIData$MISTRESC) == "INFILTRATION, MONONUCLEAR CELL"] <- "Infiltrate"
+    levels(MIData$MISTRESC)[levels(MIData$MISTRESC) == "Fibrosis"] <- "Fibroplasia/Fibrosis"
+
+    # Check any empty MISRESC column
+    empty_strings_count <- sum(MIData$MISTRESC == "")
+    ## print(paste("Number of empty strings in MISTRESC:", empty_strings_count))
+
+    # remove empty
+    MIData <- MIData[MIData$MISTRESC != '', ]  # Remove rows with empty MISTRESC
+    #........................................................................................
+    # Create a copy of MIData
+    MIData_copy <- MIData
+
+    #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+    # Remove the "Recovery animals and tk animals from "MIData"
+    #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+master_CompileData <- get_compile_data(studyid = studyid,
+                                       path_db = path_db)
+
+    # Filter the data frame
+    tk_recovery_less_MIData <- MIData %>% dplyr::filter (USUBJID %in% master_CompileData$USUBJID)
+
+    # Perform a left join to match USUBJID and get ARMCD
+    tk_recovery_less_MIData_with_ARMCD <- tk_recovery_less_MIData %>%
+      dplyr::left_join(master_CompileData %>% dplyr::select(STUDYID, USUBJID, ARMCD, SETCD), by = "USUBJID")
+
+    ########## MI Data ###############
+    MIData_cleaned <- tk_recovery_less_MIData_with_ARMCD
+    MIData_cleaned_copy <- MIData_cleaned
+
+    # cat("MIData_cleaned : \n", toString(head(MIData_cleaned)), "\nDimensions:",
+    #     paste(dim(MIData_cleaned), collapse = 'x'), "\n") # ..............................................................
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Merge Severity MI Data into Compile Data~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    MIIncidencePRIME <-MIData_cleaned[,c(1,2,4)]
+
+    test_MIIncidencePRIME <- MIIncidencePRIME
+
+    Severity <- merge(master_CompileData[,c("STUDYID","USUBJID","Species", "ARMCD")], MIData_cleaned)
+
+    MIData_cleaned_SColmn <- MIData_cleaned %>% dplyr::select(USUBJID,MISTRESC,MISEV)
+
+    MIData_cleaned_SColmn <- reshape2::dcast(MIData_cleaned, USUBJID ~ MISTRESC, value.var = "MISEV")
+
+    MIData_cleaned_SColmn[is.na(MIData_cleaned_SColmn)] <- "0" #Fill NAs with Zero
+
+    mi_CompileData <- merge(master_CompileData , MIData_cleaned_SColmn, by = "USUBJID") # Final & working mi_CompileData
+
+    # Back-up data frame for checking  purpose
+    final_working_compile_data_bef_normal <- mi_CompileData
+
+    ## cat("mi_CompileData : \n", toString(head(MIData_cleaned)), "\nDimensions:",
+    ##     paste(dim(mi_CompileData), collapse = 'x'), "\n") ### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+    # Remove Normal MI Results
+    normalIndex <- which(colnames(mi_CompileData) == 'NORMAL')
+    if (length(normalIndex) > 0) {
+      mi_CompileData <- mi_CompileData[, -normalIndex]
+    }
+
+    # Back-up data frame for checking  purpose
+    final_working_compile_data_afer_normal <- mi_CompileData
+
+    # cat("mi_CompileData : \n", toString(head(MIData_cleaned)), "\nDimensions:",
+    #     paste(dim(mi_CompileData), collapse = 'x'), "\n") ### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    # Check the data types of the columns before conversion
+    #str(mi_CompileData)
+
+    #####????????????????????????? check the number~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    # Convert columns 7 to the last column  of mi_CompileData to numeric
+    mi_CompileData[, 7:ncol(mi_CompileData)] <- sapply(mi_CompileData[, 7:ncol(mi_CompileData)], as.numeric)
+
+    # Check the data types of the columns after conversion
+    #str(mi_CompileData)
+
+
+    #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@-------------------@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+    print_MIIncidencePRIME <- MIIncidencePRIME
+    print_mi_CompileData <- mi_CompileData
+
+    # Here Check the number of columns in mi_CompileData
+    if (ncol(mi_CompileData) > 6) {
+      #Calculate Incidence per group for MI Data
+      MIIncidencePRIME <- merge(MIIncidencePRIME, unique(mi_CompileData[,c("STUDYID","USUBJID","ARMCD")]), by = c("USUBJID"))
+
+      # get the name of the columns of " MIIncidencePRIME"
+      column_MIIncidencePRIME <- data.frame(names(MIIncidencePRIME)) # column names of MIIncidencePRIME
+
+      # Directly subset the data frame
+      MIIncidence <- MIIncidencePRIME[, c("STUDYID","USUBJID", "MISTRESC","ARMCD")]
+
+      test_MIIncidence  <- MIIncidence
+
+      GroupIncid <- data.frame(Treatment = NA,Sex = NA,Finding = NA,Count = NA)
+
+      # Iterate over each unique study
+      #for (Study in unique(MIIncidence$STUDYID)){
+
+        # Iterate over sex categories
+        for (sex in c('M','F')) {
+          # Filter data for the current study
+          StudyMI <- MIIncidence[which(MIIncidence$STUDYID==unique(MIIncidence$STUDYID)),]
+          #StudyMI <- MIIncidence
+
+          StudyGroupIncid <- data.frame(Treatment = NA,Sex = NA,Finding = NA,Count = NA)
+
+          # Filter data for the current sex
+          sexSubjects <- mi_CompileData$USUBJID[which(mi_CompileData$SEX == sex)]
+          sexIndex <- which(StudyMI$USUBJID %in% sexSubjects)
+          StudyMI <- StudyMI[sexIndex,]
+
+          # Iterate over unique treatment arms (ARMCD)
+          for(dose in unique(StudyMI$ARMCD)){
+            doseMI <- StudyMI[which(StudyMI$ARMCD == dose),]
+
+            # Calculate the incidence for each finding
+            Incid <- data.frame(table(toupper(doseMI$MISTRESC))/length(unique(doseMI$USUBJID)))
+
+            names(Incid)[2] <- "Count"
+            names(Incid)[1] <- "Finding"
+            Incid$Treatment <- paste0(unique(unique(StudyMI$STUDYID)), " ",dose)
+            Incid$Sex <- sex
+
+            StudyGroupIncid <- rbind(StudyGroupIncid,Incid)
+          }
+
+          #Removing of Vehicle Baseline
+          for (finding in unique(StudyGroupIncid$Finding)) {
+            findingIndex <- which(StudyGroupIncid$Finding == finding)
+            vehicleIndex <- grep('Vehicle', StudyGroupIncid$Treatment[findingIndex]) # VEHICLE FOR THE CURRENT FINDINGS.....
+            if (length(vehicleIndex) > 0) {
+              baseline <- StudyGroupIncid$Count[findingIndex][vehicleIndex]
+              StudyGroupIncid$Count[findingIndex] <- StudyGroupIncid$Count[findingIndex] - baseline
+            }
+          }
+          negativeIndex <- which(StudyGroupIncid$Count < 0) # when findings in HD group less than the vehicle group
+          if (length(negativeIndex) > 0) {
+            StudyGroupIncid$Count[negativeIndex] <- 0
+          }
+          # Combine results
+          GroupIncid <- rbind(GroupIncid, StudyGroupIncid)
+        }
+      #}
+
+      removeIndex <- which(is.na(GroupIncid$Treatment))
+      if (length(removeIndex) > 0) {
+        GroupIncid <- GroupIncid[-removeIndex,]
+      }
+
+      MIIncidence <- GroupIncid
+
+      # cat("MIIncidence : \n", toString(head(MIData_cleaned)), "\nDimensions:",
+      #     paste(dim(MIIncidence), collapse = 'x'), "\n") #......................
+
+      #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      #~~~~~~~~~~~~~~~~~~~~~~~~Create a copy of mi_CompileData named mi_CompileData2 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+      # Create a copy of mi_CompileData named mi_CompileData2
+      mi_CompileData2 <- mi_CompileData #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+      # Severity calculation and recalculation.........................................................................
+      # Adjustment of the severity score based on the Incidence score .................................................
+
+      # Initialize ScoredData with the first 6 columns of "mi_CompileData2"
+      ScoredData <- mi_CompileData2[,1:6]
+
+      # Initialize a counter for incidence overrides
+      IncidenceOverideCount <- 0
+
+      # Define column range for MI Data (from the 6th to the last column of mi_CompileData2)
+      colIndex <- seq(7, ncol(mi_CompileData2))
+
+      # Iterate over each column for scoring and adjustments
+      for (i in colIndex){
+        colName <- colnames(mi_CompileData2)[i]
+        ScoredData[[colName]] <- NA
+
+        #Score Severity # changing the current severity value in MISEV column???????????
+        # Score Severity based on mi_CompileData2 #
+
+        x <- ifelse(mi_CompileData2[,i] == 5, 5,
+                    ifelse(mi_CompileData2[,i] > 3, 3,
+                           ifelse(mi_CompileData2[,i] == 3, 2,
+                                  ifelse(mi_CompileData2[,i] > 0, 1, 0))))
+
+        # x <- ifelse(mi_CompileData2[,i]>3,3,
+        #             ifelse(mi_CompileData2[,i]==3,2,
+        #                    ifelse(mi_CompileData2[,i]>0,1,0)))
+
+        ScoredData[,colName] <-x
+
+        # Update mi_CompileData2 with the values from ScoredData for the current column
+        mi_CompileData2[,colName] <- x
+
+        #Check the Incidence percentage for each group
+          for (sex in c('M','F')) {
+            #studyDataStudyIndex <- which(mi_CompileData2$STUDYID == Study)
+            studyDataStudyIndex <- which(mi_CompileData2$STUDYID == unique(ScoredData$STUDYID))
+            studyDataSexIndex <- which(mi_CompileData2$SEX == sex)
+            studyDataIndex <- intersect(studyDataStudyIndex, studyDataSexIndex)
+            StudyData <- mi_CompileData2[studyDataIndex,]
+
+            #MIIncidStudyIndex <- grep(Study, MIIncidence$Treatment)
+            MIIncidStudyIndex <- grep(unique(ScoredData$STUDYID), MIIncidence$Treatment)
+            MIIncidSexIndex <- which(MIIncidence$Sex == sex)
+            MIIncidIndex <- intersect(MIIncidStudyIndex, MIIncidSexIndex)
+            MIIncidStudy <- MIIncidence[MIIncidIndex,]
+
+            for (Dose2 in unique(StudyData$ARMCD)){
+              DoseSevIndex <- which(StudyData$ARMCD == Dose2)
+              DoseSev <- StudyData[DoseSevIndex,]
+              DoseIncid <- MIIncidStudy[which(stringr::word(MIIncidStudy$Treatment, -1) == Dose2),]
+              if (colName %in% DoseIncid$Finding) {
+                findingIndex <- which(DoseIncid$Finding == colName)
+
+                Incid <- DoseIncid$Count[findingIndex]
+                Incid <- ifelse(Incid >= 0.75, 5,
+                                ifelse(Incid >= 0.5, 3,
+                                       ifelse(Incid >= 0.25, 2,
+                                              ifelse(Incid >= 0.1, 1, 0))))
+
+                # Incid <- ifelse(Incid>=0.5,3,
+                #                 ifelse(Incid>=0.25,2,
+                #                        ifelse(Incid>=0.1,1,0)))
+                swapIndex <- which(DoseSev[[colName]] < Incid & DoseSev[[colName]] > 0)
+                if (length(swapIndex) > 0) {
+                  DoseSev[swapIndex, colName] <- Incid
+                  ScoredData[studyDataIndex[DoseSevIndex], colName] <- DoseSev[, colName]
+                  IncidenceOverideCount <- IncidenceOverideCount + 1
+                }
+
+              }
+            }
+          }
+      }
+
+      # subset the ScoredData
+      ScoredData_subset_HD <- ScoredData %>% dplyr::filter (ARMCD == "HD")
+
+      # Convert columns from 7th to the last to numeric
+      ScoredData_subset_HD[, 7:ncol(ScoredData_subset_HD)] <- lapply(
+        ScoredData_subset_HD[, 7:ncol(ScoredData_subset_HD)],
+        function(x) as.numeric(as.character(x))
+      )
+
+      # Calculate the highest score for each row from the 7th to the last column
+
+      # Check the number of columns
+      num_cols_ScoredData_subset_HD <- ncol(ScoredData_subset_HD)
+
+      # If number of columns is 7, assign highest_score as the value of the 7th column
+      if (num_cols_ScoredData_subset_HD == 7) {
+        ScoredData_subset_HD$highest_score <- ScoredData_subset_HD[, 7]
+      } else {
+        # If number of columns is more than 7, get the max value from column 7 to the end
+        #ScoredData_subset_HD$highest_score <- apply(ScoredData_subset_HD[, 7:ncol(ScoredData_subset_HD)], 1, max, na.rm = TRUE)
+        ScoredData_subset_HD$highest_score <- matrixStats::rowMaxs(as.matrix(ScoredData_subset_HD[, 7:ncol(ScoredData_subset_HD)]), na.rm = TRUE)
+      }
+
+      # Move the highest_score column to be the third column
+      ScoredData_subset_HD <- ScoredData_subset_HD[, c(1:2, ncol(ScoredData_subset_HD), 3:(ncol(ScoredData_subset_HD)-1))]
+
+
+      # averaged zscore per STUDYID for 'MI'..................................................................................
+
+      # Step 1: Filter for HD
+      #MI_final_score <- ScoredData_subset_HD [ARMCD == "HD"]
+      MI_final_score <- ScoredData_subset_HD %>% dplyr::filter(ARMCD == "HD")
+
+      # Step 2: Convert highest_score to numeric # FACTOR value to numeric......?????????
+      MI_final_score <- MI_final_score %>%  dplyr::mutate(highest_score = as.numeric(highest_score))
+
+      # Step 3: Group by STUDYID
+      MI_final_score <- MI_final_score %>%  dplyr::group_by(STUDYID)
+
+      # Step 4: Average MI_score
+      MI_final_score <- MI_final_score %>%  dplyr::summarise( avg_MI_score = mean(highest_score, na.rm = TRUE),  )
+
+      # Step 5: final column selection
+      MI_final_score <- MI_final_score %>% dplyr::select(STUDYID, avg_MI_score)
+
+
+      MI_df <- MI_final_score %>% dplyr::rename(MI_score = avg_MI_score)
+
+      # Extract the MI_score value for the current STUDYID from MI_df
+      calculated_MI_value <- MI_df$MI_score[MI_df$STUDYID == unique(mi$STUDYID)]
+
+
+          } else {
+      # Create MI_final_score data frame with STUDYID and avg_MI_score
+      # avg_MI_score is set to 0 and STUDYID values are unique from mi$STUDYID
+      MI_final_score <- data.frame(
+        STUDYID = unique(mi$STUDYID),
+        avg_MI_score = NA
+      )
+
+      # Append the "MI_score" to the "FOUR_Liver_Score" data frame
+      MI_df <- MI_final_score %>% dplyr::rename(MI_score = avg_MI_score)
+
+      # Extract the MI_score value for the current STUDYID from MI_df
+      calculated_MI_value <- MI_df$MI_score[MI_df$STUDYID == unique(mi$STUDYID)]
+
+    }
+
+  calculated_MI_value
+
+
+}

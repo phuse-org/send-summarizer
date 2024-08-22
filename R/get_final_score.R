@@ -1,0 +1,51 @@
+## This code is to get score
+
+## -----------------------------------------------------------------------------
+##   Date                     Programmer
+## ----------   --------------------------------------------------------------
+##   Mar-31-2024    Md Yousuf Ali (md.ali@fda.hhs.gov)
+
+#' @title get all score
+#' @param studyid Mandatory, character \cr
+#'   Studyid number
+#' @param path_db Mandatory, character \cr
+#'   path of database
+#' @return dataframe
+#'
+#' @param domain Mandatory, character or vector \cr
+#' either string or vector of domain name
+#' @examples
+#' \dontrun{
+#' get_all_score(studyid='1234123', path_db='path/to/database.db', domain=c('lb'))
+#' }
+#' @export
+
+get_all_score <- function(studyid, path_db, domain= c('lb','mi', 'bw')) {
+
+studyid <- as.character(studyid)
+  path_db <- fs::path(path_db)
+  domain_len <- length(domain)
+result_return <- list(studyid_res = studyid)
+  for(i in 1:domain_len){
+    cur_dom <- domain[i]
+    if(cur_dom=='lb'){
+      df <- get_lb_score(studyid, path_db)
+
+    }else if(cur_dom=='mi') {
+
+      df <- get_mi_score(studyid, path_db)
+
+    } else if (cur_dom=='bw'){
+
+      df <- get_bw_score(studyid, path_db)
+
+    } else{
+      stop('check your domain')
+
+    }
+
+    ## result_return[[studyid]][[cur_dom]] <- df
+    result_return[[cur_dom]] <- df
+  }
+result_return
+}
