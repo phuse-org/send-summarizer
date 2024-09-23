@@ -18,10 +18,13 @@
 #' @importFrom RSQLite dbConnect
 #' @importFrom RSQLite SQLite
 
-get_bw_score <- function(studyid, path_db, fake_study = FALSE, master_CompileData = NULL) {
+get_bw_score <- function(studyid, 
+                         path_db, 
+                         fake_study = FALSE, 
+                         master_CompileData = NULL,
+                         score_in_list_format = FALSE) {
 
 studyid <- as.character(studyid)
-
 
 path <- path_db
   con <- DBI::dbConnect(DBI::dbDriver('SQLite'), dbname = path)
@@ -38,7 +41,6 @@ path <- path_db
 
     #Pull relevant domain data for each domain
   bw <- con_db('bw')
-  print(bw)
   ts <- con_db('ts')
   pooldef <- con_db('pooldef')
   pp <- con_db('pp')
@@ -376,13 +378,18 @@ path <- path_db
         BWZSCORE = (finalbodyweight - mean_vehicle) / sd_vehicle
       ) %>%
       dplyr::select(-mean_vehicle, -sd_vehicle)  # Optionally remove the mean_vehicle and sd_vehicle columns
-
+    
     # Filter and select specific columns
     HD_BWzScore <- bwzscore_BW %>%
       dplyr::filter(ARMCD == "HD") %>%
       dplyr::select(STUDYID, USUBJID, SEX, BWZSCORE)
       
     as.data.frame(HD_BWzScore)
-
+    # Return based on score_in_list_format
+    if (score_in_list_format) {
+      return(bwzscore_BW = bwzscore_BW)
+    } else {
+      return(HD_BWzScore)
+    }
 
 }

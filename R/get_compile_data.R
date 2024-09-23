@@ -43,11 +43,6 @@ data.table::setDF(dm)
 
   } else{
 
-
-
-
-
-
 #Pull relevant domain data for each domain
   bw <- con_db('bw')
   dm <- con_db('dm')

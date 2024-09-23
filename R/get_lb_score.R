@@ -14,7 +14,11 @@
 #' }
 #' @export
 
-get_lb_score <- function(studyid, path_db,fake_study= FALSE, master_CompileData = NULL) {
+get_lb_score <- function(studyid, 
+                         path_db,
+                         fake_study= FALSE, 
+                         master_CompileData = NULL, 
+                         score_list_format = FALSE) {
 
 studyid <- as.character(studyid)
 path <- path_db

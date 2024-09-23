@@ -14,7 +14,7 @@
 #' }
 #' @export
 
-get_mi_score <- function(studyid, path_db,fake_study=FALSE) {
+get_mi_score <- function(studyid, path_db,fake_study=FALSE, master_CompileData = NULL) {
 studyid <- as.character(studyid)
 path <- path_db
   con <- DBI::dbConnect(DBI::dbDriver('SQLite'), dbname = path)
@@ -100,10 +100,20 @@ path <- path_db
 
     #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
     # Remove the "Recovery animals and tk animals from "MIData"
+    #<><><><><><><><> master_CompileData is free of TK animals and Recovery animals<><><><><><><><><><><><><><>
     #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-master_CompileData <- get_compile_data(studyid = studyid,
-                                       path_db = path_db,fake_study = fake_study)
+    #' @get-master-compile-data~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    #browser()
+    # Check if master_CompileData is NULL
+    if (is.null(master_CompileData)) {
+      fake_study = fake_study
+      # Call the master_CompileData function to generate the data frame
+      master_CompileData <- get_compile_data(studyid, path_db,fake_study = fake_study)  
+    } 
+    
+    
+     # master_CompileData <- get_compile_data(studyid = studyid,
+     #                                   path_db = path_db,fake_study = fake_study)
 
     # Filter the data frame
     tk_recovery_less_MIData <- MIData %>% dplyr::filter (USUBJID %in% master_CompileData$USUBJID)
