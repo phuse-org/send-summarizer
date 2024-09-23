@@ -149,5 +149,12 @@ get_liver_livertobw_score <- function (studyid,
   #                                                    ifelse(FOUR_Liver_Score$liverToBW >= 1, 1, 0)))
   # 
   # 
-return(final_liverToBW_df) 
+#return(final_liverToBW_df) 
+  # Return based on score_in_list_format
+  if (score_in_list_format) {
+    return(HD_liver_zscore)
+  } else {
+    return(final_liverToBW_df)
+  } 
+  
 }

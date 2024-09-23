@@ -14,7 +14,12 @@
 #' }
 #' @export
 
-get_mi_score <- function(studyid, path_db,fake_study=FALSE, master_CompileData = NULL) {
+get_mi_score <- function(studyid, 
+                         path_db,
+                         fake_study=FALSE, 
+                         master_CompileData = NULL,
+                         score_in_list_format = FALSE) {
+  
 studyid <- as.character(studyid)
 path <- path_db
   con <- DBI::dbConnect(DBI::dbDriver('SQLite'), dbname = path)
@@ -183,6 +188,7 @@ path <- path_db
     print_mi_CompileData <- mi_CompileData
 
     # Here Check the number of columns in mi_CompileData
+    
     if (ncol(mi_CompileData) > 6) {
       #Calculate Incidence per group for MI Data
       MIIncidencePRIME <- merge(MIIncidencePRIME, unique(mi_CompileData[,c("STUDYID","USUBJID","ARMCD")]), by = c("USUBJID"))
@@ -348,6 +354,8 @@ path <- path_db
         function(x) as.numeric(as.character(x))
       )
 
+      #' @~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      if(score_in_list_format == FALSE) {
       # Calculate the highest score for each row from the 7th to the last column
 
       # Check the number of columns
@@ -368,7 +376,7 @@ path <- path_db
 
 
       # averaged zscore per STUDYID for 'MI'..................................................................................
-
+      
       # Step 1: Filter for HD
       #MI_final_score <- ScoredData_subset_HD [ARMCD == "HD"]
       MI_final_score <- ScoredData_subset_HD %>% dplyr::filter(ARMCD == "HD")
@@ -389,26 +397,73 @@ path <- path_db
       MI_df <- MI_final_score %>% dplyr::rename(MI_score = avg_MI_score)
 
       # Extract the MI_score value for the current STUDYID from MI_df
+      #calculated_MI_value <- MI_df$MI_score[MI_df$STUDYID == unique(mi$STUDYID)]
       calculated_MI_value <- MI_df$MI_score[MI_df$STUDYID == unique(mi$STUDYID)]
-
 
           } else {
       # Create MI_final_score data frame with STUDYID and avg_MI_score
       # avg_MI_score is set to 0 and STUDYID values are unique from mi$STUDYID
-      MI_final_score <- data.frame(
-        STUDYID = unique(mi$STUDYID),
-        avg_MI_score = NA
-      )
+      MI_final_score <- data.frame(  STUDYID = unique(mi$STUDYID), avg_MI_score = NA)
 
       # Append the "MI_score" to the "FOUR_Liver_Score" data frame
       MI_df <- MI_final_score %>% dplyr::rename(MI_score = avg_MI_score)
 
       # Extract the MI_score value for the current STUDYID from MI_df
-      calculated_MI_value <- MI_df$MI_score[MI_df$STUDYID == unique(mi$STUDYID)]
-
+      calculated_MI_value <- MI_df$MI_score
     }
 
-  calculated_MI_value
-
+  calculated_mi_score <- calculated_MI_value 
+    }
+  #' @~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  #' @~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  # if score_in_list_format is TRUE 
+  if (score_in_list_format == TRUE) {
+    
+      #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      #~~~~~~~~~~ GET all the severity as individual in a list ~~~~~~~~~~~~~~~
+      #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      
+      # Working with "ScoredData_subset_HD " according to Kevin's advise
+      # Create a variable for "ScoredData_subset_HD" data frame
+      mi_scoredata_hd <- ScoredData_subset_HD #' @~~~~~~~~~~~~~~~~~
+      
+      #Average calculation for each of the 7th column to onward.
+      
+      # Select columns from 7th to the last
+      col_7th_to_end <- mi_scoredata_hd[, 7:length(colnames(mi_scoredata_hd)),
+                                        drop = FALSE]
+      
+      # Calculate the mean for each selected column
+      mean_col_7th_to_end <- lapply(col_7th_to_end, mean)
+      
+      # Define  an empty list
+      empty_mi_score_list <- list()
+      
+      # Add a 'STUDYID' element to the empty_list  with value 'j'
+      empty_mi_score_list[['STUDYID']] <- unique(mi$STUDYID)
+      
+      # Append elements from mean_col_7th_to_end to 
+      mi_score_final_list <- append(empty_mi_score_list, mean_col_7th_to_end)
+      
+      print(mi_score_final_list)
+      
+      # Convert the list to data frame 
+      mi_score_final_list_df <- dplyr::bind_rows(mi_score_final_list, .id = "iteration")
+      
+      
+    } else {
+      #mi_score_final_list_df <- tibble::tibble()
+      mi_score_final_list_df <- data.frame()
+    }
+  
+  
+  # Return based on score_in_list_format
+  if (score_in_list_format) {
+    return(mi_score_final_list_df)
+  } else {
+    return(calculated_mi_score)
+  }
 
 }

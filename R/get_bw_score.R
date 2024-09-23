@@ -385,9 +385,10 @@ path <- path_db
       dplyr::select(STUDYID, USUBJID, SEX, BWZSCORE)
       
     as.data.frame(HD_BWzScore)
+    
     # Return based on score_in_list_format
     if (score_in_list_format) {
-      return(bwzscore_BW = bwzscore_BW)
+      return(bwzscore_BW)
     } else {
       return(HD_BWzScore)
     }

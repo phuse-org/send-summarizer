@@ -18,7 +18,7 @@ get_lb_score <- function(studyid,
                          path_db,
                          fake_study= FALSE, 
                          master_CompileData = NULL, 
-                         score_list_format = FALSE) {
+                         score_in_list_format = FALSE) {
 
 studyid <- as.character(studyid)
 path <- path_db
@@ -329,6 +329,13 @@ master_LB_list <- data.frame(STUDYID = NA, avg_alb_zscore = NA, avg_ast_zscore =
                              avg_alt_zscore = NA, avg_bili_zscore = NA, avg_ggt_zscore = NA)
 ##     # Add LB_zscore_merged_df to master dataframe
     master_LB_list <- dplyr::bind_rows(master_LB_list, LB_zscore_merged_df)
+    
+    
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    
+    master_lb_scores <- master_LB_list #%>% master_lb_scores[-1,]
+    master_lb_scores   <- master_lb_scores[-1,] # remove the first column 
+   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ##     # Calculate the average for each row, ignoring NA values
     LB_zscore_merged_df$avg_all_LB_zscores <- rowMeans(LB_zscore_merged_df[selected_cols], na.rm = TRUE)
@@ -355,10 +362,16 @@ master_LB_list <- data.frame(STUDYID = NA, avg_alb_zscore = NA, avg_ast_zscore =
 ##     # Score the LB_score values in the FOUR_Liver_Score data frame and fill "scored_LBScore" column
 ##
 score_final <- LB_all_liver_zscore_averaged$avg_all_LB_zscores
-    LB_final_score$zscore <- ifelse(score_final >= 3, 3,
-                                              ifelse(score_final >= 2, 2,
-                                                     ifelse(score_final >= 1, 1, 0)))
+    
+# LB_final_score$zscore <- ifelse(score_final >= 3, 3,
+#                                               ifelse(score_final >= 2, 2,
+#                                                      ifelse(score_final >= 1, 1, 0)))
 ##   FOUR_Liver_Score
-
+# Return based on score_in_list_format
+if (score_in_list_format) {
+  return(master_lb_scores)
+} else {
+  return(score_final)
+}
 
 }

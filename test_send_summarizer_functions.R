@@ -24,7 +24,13 @@ bw_Lscore_TestDB <- get_bw_score(studyid ='511-21060018', path_db = 'C:/Users/md
 lb_score <- get_lb_score(studyid='10663', path_db='C:/Users/mdaminulisla.prodhan/OneDrive - FDA/2023-2024_projects/FAKE_DATABASES/liver_1.db',fake_study = TRUE, master_CompileData = NULL)
 
 
-lb_score_TestDB <- get_lb_score(studyid='511-21060018', path_db='C:/Users/mdaminulisla.prodhan/OneDrive - FDA/TestDB.db', fake_study=FALSE, master_CompileData = NULL)
+lb_score_TestDB <- get_lb_score(studyid='511-21060018', path_db='C:/Users/mdaminulisla.prodhan/OneDrive - FDA/TestDB.db',
+                                fake_study=FALSE, master_CompileData = NULL, score_in_list_format = FALSE)
+
+
+mi_score_TestDB <- get_mi_score(studyid='511-21060018', path_db='C:/Users/mdaminulisla.prodhan/OneDrive - FDA/TestDB.db',
+                                fake_study = FALSE, master_CompileData = NULL, score_in_list_format = FALSE)
+
 
 
 
