@@ -14,7 +14,7 @@
 #' }
 #' @export
 
-get_lb_score <- function(studyid, path_db,fake_study=FALSE, master_CompileData = NULL) {
+get_lb_score <- function(studyid, path_db,fake_study= FALSE, master_CompileData = NULL) {
 
 studyid <- as.character(studyid)
 path <- path_db
@@ -98,15 +98,21 @@ path <- path_db
       dplyr::filter(VISITDY == max(VISITDY, na.rm = TRUE)) %>%
       dplyr::ungroup()
 
-  # get master compile data
-    # Check if master_CompileData is NULL
-    if (is.null(master_CompileData)) {
-      # Call the master_CompileData function to generate the data frame
-      master_CompileData <- master_CompileDataFunction()  # Replace with actual function name
-    }
-  master_CompileData <- get_compile_data(studyid, path_db,fake_study = fake_study)
+  
+  # master_CompileData <- get_compile_data(studyid, path_db,fake_study = fake_study)
+    
     #<><><><><><><><><><><><><><><><>... Remove TK animals and Recovery animals......<><><><><><>.............
     #<><><><><><><><> master_CompileData is free of TK animals and Recovery animals<><><><><><><><><><><><><><>
+    
+    #' @get-master-compile-data~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    
+    # Check if master_CompileData is NULL
+    if (is.null(master_CompileData)) {
+      fake_study = fake_study
+      # Call the master_CompileData function to generate the data frame
+      master_CompileData <- get_compile_data(studyid, path_db,fake_study = fake_study)  
+    } 
+    
     # Remove the TK animals and Recovery animals
     LB_tk_recovery_filtered <- max_visitdy_df %>%
       dplyr::filter(USUBJID %in% master_CompileData$USUBJID)
@@ -297,7 +303,7 @@ path <- path_db
                                             ifelse(avg_alb_zscore >= 2, 2,
                                                    ifelse(avg_alb_zscore >= 1, 1, 0))))
 
-    browser()
+    
     # Merging----------LB----zscores------------values---------------------------
     LB_zscore_merged_df <- serum_alb_final_zscore %>%
       dplyr::full_join(serum_ast_final_zscore, by = "STUDYID") %>%

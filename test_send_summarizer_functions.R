@@ -13,7 +13,44 @@ sendSummarizer::send_cross_study_app('path_to_database.db')
 
 bw_score <- get_bw_score(studyid='10663', path_db='C:/Users/mdaminulisla.prodhan/OneDrive - FDA/2023-2024_projects/FAKE_DATABASES/liver_1.db', fake_study=TRUE)
 
-lb_score <- get_lb_score(studyid='10663', path_db='C:/Users/mdaminulisla.prodhan/OneDrive - FDA/2023-2024_projects/FAKE_DATABASES/liver_1.db', fake_study=TRUE)
+bw_Lscore_TestDB <- get_bw_score(studyid='511-21060018', path_db='C:/Users/mdaminulisla.prodhan/OneDrive - FDA/TestDB.db', fake_study=FALSE, master_CompileData = NULL)
 
 
-lb_score_TestDB <- get_lb_score(studyid='511-21060018', path_db='C:/Users/mdaminulisla.prodhan/OneDrive - FDA/TestDB.db', fake_study=FALSE)
+
+lb_score <- get_lb_score(studyid='10663', path_db='C:/Users/mdaminulisla.prodhan/OneDrive - FDA/2023-2024_projects/FAKE_DATABASES/liver_1.db',fake_study = TRUE, master_CompileData = NULL)
+
+
+lb_score_TestDB <- get_lb_score(studyid='511-21060018', path_db='C:/Users/mdaminulisla.prodhan/OneDrive - FDA/TestDB.db', fake_study=FALSE, master_CompileData = NULL)
+
+
+
+save(bw_score_TestDB, file = "bw_score_TestDB.RData")
+
+
+
+
+
+
+
+
+
+
+
+
+
+#' @~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~o724~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+ get_liver_compiledata <- function(studyid, database_path){ }
+ get_liver_dose_ranking <- function(studyid, tx, cleaned_compiledata){}
+ get_liver_bw_score  <-  function(studyid, bw, ts, master_compiledata, tK_animals_df ){}
+ get_liver_lb_score <- function (studyid, ts, lb,  master_compiledata) {}
+ 
+#' @~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~bcs~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ get_compile_data <- function(studyid, path_db,fake_study=FALSE) {}
+ get_doses <- function(studyid, path_db, xpt_dir=NULL) {}
+ get_bw_score <- function(studyid, path_db,fake_study=FALSE) {}
+ get_mi_score <- function(studyid, path_db,fake_study=FALSE) {}
+ get_lb_score <- function(studyid, path_db,fake_study= FALSE, master_CompileData = NULL) {}
+ 
+ #' @~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~o724~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 

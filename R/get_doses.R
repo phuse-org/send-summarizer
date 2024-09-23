@@ -11,7 +11,7 @@
 #' }
 #' @export
 
-get_doses <- function(studyid, path_db,xpt_dir=NULL) {
+get_doses <- function(studyid, path_db, xpt_dir=NULL) {
 
   if(!is.null(xpt_dir)) {
 bw <- haven::read_xpt(fs::path(xpt_dir,'bw.xpt'))
