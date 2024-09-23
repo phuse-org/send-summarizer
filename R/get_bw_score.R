@@ -38,6 +38,7 @@ path <- path_db
 
     #Pull relevant domain data for each domain
   bw <- con_db('bw')
+  print(bw)
   ts <- con_db('ts')
   pooldef <- con_db('pooldef')
   pp <- con_db('pp')
@@ -337,7 +338,7 @@ path <- path_db
     # Create the finalbodyweight column in merged_recovery_tk_cleaned_dose_ranked_df data frame
     bwzscore_BW_df <- BW_df_merged_ARMCD %>%
       dplyr::mutate(finalbodyweight = abs(BWSTRESN - BWSTRESN_Init))
-
+browser()
     # Create the BWZSCORE column
     bwzscore_BW <- bwzscore_BW_df %>%
       dplyr::group_by(STUDYID) %>%
@@ -355,7 +356,8 @@ path <- path_db
     HD_BWzScore <- bwzscore_BW %>%
       dplyr::filter(ARMCD == "HD") %>%
       dplyr::select(STUDYID, USUBJID, SEX, BWZSCORE)
-as.data.frame(HD_BWzScore)
+      
+    as.data.frame(HD_BWzScore)
 
 
 }

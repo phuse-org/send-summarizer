@@ -14,7 +14,7 @@
 #' }
 #' @export
 
-get_lb_score <- function(studyid, path_db,fake_study=FALSE) {
+get_lb_score <- function(studyid, path_db,fake_study=FALSE, master_CompileData = NULL) {
 
 studyid <- as.character(studyid)
 path <- path_db
@@ -99,6 +99,11 @@ path <- path_db
       dplyr::ungroup()
 
   # get master compile data
+    # Check if master_CompileData is NULL
+    if (is.null(master_CompileData)) {
+      # Call the master_CompileData function to generate the data frame
+      master_CompileData <- master_CompileDataFunction()  # Replace with actual function name
+    }
   master_CompileData <- get_compile_data(studyid, path_db,fake_study = fake_study)
     #<><><><><><><><><><><><><><><><>... Remove TK animals and Recovery animals......<><><><><><>.............
     #<><><><><><><><> master_CompileData is free of TK animals and Recovery animals<><><><><><><><><><><><><><>
@@ -141,8 +146,11 @@ path <- path_db
       dplyr::summarise(
         avg_alt_zscore = mean(alt_zscore, na.rm = TRUE),  # Step 3: Average alt_zscore
         LBTESTCD = dplyr::first(LBTESTCD)  # Include LBTESTCD in the summarized data
-      ) %>% dplyr::select (STUDYID, avg_alt_zscore )
-
+      ) %>% dplyr::select (STUDYID, avg_alt_zscore )%>% #select (avg_alt_zscore ) %>%
+      dplyr::mutate(avg_alt_zscore = ifelse(avg_alt_zscore >= 3, 3,
+                                            ifelse(avg_alt_zscore >= 2, 2,
+                                                   ifelse(avg_alt_zscore >= 1, 1, 0))))
+    
 
     # 2. Sub-setting for 'SERUM | AST' data frame for "BWzScore Calculation" for...'SERUM | AST'...........
     df_serum_ast <- LB_tk_recovery_filtered_ARMCD %>%
@@ -168,7 +176,10 @@ path <- path_db
       dplyr::summarise(
         avg_ast_zscore = mean(ast_zscore, na.rm = TRUE),  # Step 3: Average alt_zscore
         LBTESTCD = dplyr::first(LBTESTCD)  # Include LBTESTCD in the summarized data
-      )  %>% dplyr::select(STUDYID, avg_ast_zscore)
+      )  %>% dplyr::select(STUDYID, avg_ast_zscore) %>% #select(avg_ast_zscore) %>%
+      dplyr::mutate(avg_ast_zscore = ifelse(avg_ast_zscore >= 3, 3,
+                                            ifelse(avg_ast_zscore >= 2, 2,
+                                                   ifelse(avg_ast_zscore >= 1, 1, 0))))
 
     # 3........Sub-setting for 'SERUM | ALP' data frame for "BWzScore Calculation" for...'SERUM | ALP'...........
     df_serum_alp <- LB_tk_recovery_filtered_ARMCD %>%
@@ -194,7 +205,10 @@ path <- path_db
       dplyr::summarise(
         avg_alp_zscore = mean(alp_zscore, na.rm = TRUE),  # Step 3: Average alt_zscore
         LBTESTCD = dplyr::first(LBTESTCD)  # Include LBTESTCD in the summarized data
-      ) %>% dplyr::select (STUDYID, avg_alp_zscore)
+      ) %>% dplyr::select (STUDYID, avg_alp_zscore) %>% #select (avg_alp_zscore) %>%
+      dplyr::mutate(avg_alp_zscore = ifelse(avg_alp_zscore >= 3, 3,
+                                            ifelse(avg_alp_zscore >= 2, 2,
+                                                   ifelse(avg_alp_zscore >= 1, 1, 0))))
 
     # 4. Sub-setting for 'SERUM | GGT' data frame for "BWzScore Calculation" for...'SERUM | GGT'...........
     df_serum_ggt <- LB_tk_recovery_filtered_ARMCD %>%
@@ -220,7 +234,10 @@ path <- path_db
       dplyr::summarise(
         avg_ggt_zscore = mean(ggt_zscore, na.rm = TRUE),  # Step 3: Average alt_zscore
         LBTESTCD = dplyr::first(LBTESTCD)  # Include LBTESTCD in the summarized data
-      ) %>% dplyr::select(STUDYID, avg_ggt_zscore)
+      ) %>% dplyr::select(STUDYID, avg_ggt_zscore) %>% #select(avg_ggt_zscore) %>%
+      dplyr::mutate(avg_ggt_zscore = ifelse(avg_ggt_zscore >= 3, 3,
+                                            ifelse(avg_ggt_zscore >= 2, 2,
+                                                   ifelse(avg_ggt_zscore >= 1, 1, 0))))
 
     #5.  Sub-setting for 'SERUM | BILI' data frame for "BWzScore Calculation" for...'SERUM | BILI'...........
     df_serum_bili <- LB_tk_recovery_filtered_ARMCD %>%
@@ -246,7 +263,10 @@ path <- path_db
       dplyr::summarise(
         avg_bili_zscore = mean(bili_zscore, na.rm = TRUE),  # Step 3: Average alt_zscore
         LBTESTCD = dplyr::first(LBTESTCD)  # Include LBTESTCD in the summarized data
-      )  %>% dplyr::select(STUDYID, avg_bili_zscore)
+      )  %>% dplyr::select(STUDYID, avg_bili_zscore) %>% #select(avg_bili_zscore) %>%
+      dplyr::mutate(avg_bili_zscore = ifelse(avg_bili_zscore >= 3, 3,
+                                             ifelse(avg_bili_zscore >= 2, 2,
+                                                    ifelse(avg_bili_zscore >= 1, 1, 0))))
 
     # 6. Sub-setting for 'SERUM | ALB' data frame for "BWzScore Calculation" for...'SERUM | ALB'...........
     df_serum_alb <- LB_tk_recovery_filtered_ARMCD %>%
@@ -272,8 +292,12 @@ path <- path_db
       dplyr::summarise(
         avg_alb_zscore = mean(alb_zscore, na.rm = TRUE),  # Step 3: Average alt_zscore
         LBTESTCD = dplyr::first(LBTESTCD)  # Include LBTESTCD in the summarized data
-      ) %>% dplyr::select(STUDYID, avg_alb_zscore)
+      ) %>% dplyr::select(STUDYID, avg_alb_zscore) %>% #select(avg_alb_zscore) %>%
+      dplyr::mutate(avg_alb_zscore = ifelse(avg_alb_zscore >= 3, 3,
+                                            ifelse(avg_alb_zscore >= 2, 2,
+                                                   ifelse(avg_alb_zscore >= 1, 1, 0))))
 
+    browser()
     # Merging----------LB----zscores------------values---------------------------
     LB_zscore_merged_df <- serum_alb_final_zscore %>%
       dplyr::full_join(serum_ast_final_zscore, by = "STUDYID") %>%
