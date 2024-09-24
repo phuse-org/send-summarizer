@@ -13,6 +13,28 @@ devtools::load_all(".")
 #sendSummarizer::send_cross_study_app('path_to_database.db')
 
 # Add more function tests here
+#xpt_dir
+
+xpt_compile_data <- new_compileData(studyid='1017-3518', 
+                                    path_db= "C:/Users/mdaminulisla.prodhan/OneDrive - FDA/2023-2024_projects/FAKE_DATABASES/real_xpt_dir/IND051292_1017-3581",
+                                    xpt_files = TRUE,
+                                    fake_study=FALSE)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 bw_score <- get_bw_score(studyid='10663', path_db='C:/Users/mdaminulisla.prodhan/OneDrive - FDA/2023-2024_projects/FAKE_DATABASES/liver_1.db', fake_study=TRUE)
 
@@ -47,6 +69,11 @@ livertobw_ratio <- get_liver_livertobw_score (studyid =  '511-21060018',
                                                           bwzscore_BW = NULL, 
                                                           score_in_list_format = FALSE)
 
+compile_data <- get_compile_data(studyid='876', path_db='C:/Users/mdaminulisla.prodhan/OneDrive - FDA/TestDB.db',
+                             fake_study=FALSE)
+
+fake_compile_data <- get_compile_data(studyid='10663', path_db='C:/Users/mdaminulisla.prodhan/OneDrive - FDA/TestDB.db',
+                                 fake_study = TRUE)
 #' @~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~o724~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
  get_liver_compiledata <- function(studyid, database_path){ }
@@ -61,5 +88,5 @@ livertobw_ratio <- get_liver_livertobw_score (studyid =  '511-21060018',
  get_mi_score <- function(studyid, path_db,fake_study=FALSE, master_CompileData = NULL) {}
  get_lb_score <- function(studyid, path_db,fake_study= FALSE, master_CompileData = NULL) {}
  
- #' @~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~o724~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ #' @~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~xpt_file_testing~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  
