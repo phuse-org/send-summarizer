@@ -107,7 +107,7 @@ path <- path_db
     # Remove the "Recovery animals and tk animals from "MIData"
     #<><><><><><><><> master_CompileData is free of TK animals and Recovery animals<><><><><><><><><><><><><><>
     #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-    #' @get-master-compile-data~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # @get-master-compile-data~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     #browser()
     # Check if master_CompileData is NULL
     if (is.null(master_CompileData)) {
@@ -354,7 +354,7 @@ path <- path_db
         function(x) as.numeric(as.character(x))
       )
 
-      #' @~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      # @~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
       if(score_in_list_format == FALSE) {
       # Calculate the highest score for each row from the 7th to the last column
 
@@ -414,8 +414,8 @@ path <- path_db
 
   calculated_mi_score <- calculated_MI_value 
     }
-  #' @~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  #' @~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  # @~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  # @~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   # if score_in_list_format is TRUE 
   if (score_in_list_format == TRUE) {
     
@@ -427,7 +427,7 @@ path <- path_db
       
       # Working with "ScoredData_subset_HD " according to Kevin's advise
       # Create a variable for "ScoredData_subset_HD" data frame
-      mi_scoredata_hd <- ScoredData_subset_HD #' @~~~~~~~~~~~~~~~~~
+      mi_scoredata_hd <- ScoredData_subset_HD # @~~~~~~~~~~~~~~~~~
       
       #Average calculation for each of the 7th column to onward.
       

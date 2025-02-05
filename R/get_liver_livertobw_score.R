@@ -63,7 +63,7 @@ get_liver_livertobw_score <- function (studyid,
   #<><><><><><><><> master_compiledataaa is free of TK animals and Recovery animals<><><><><><><><><><><><><><>
   # Filter the data frame for removing recovery and TK animals.....................................
   
-  #' @get-master-compile-data~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  #  @get-master-compile-data~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   #browser()
   # Check if master_CompileData is NULL
   if (is.null(master_CompileData)) {

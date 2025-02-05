@@ -4,7 +4,13 @@
 \alias{get_bw_score}
 \title{get BW score for a given studyid}
 \usage{
-get_bw_score(studyid, path_db, fake_study = FALSE)
+get_bw_score(
+  studyid,
+  path_db,
+  fake_study = FALSE,
+  master_CompileData = NULL,
+  score_in_list_format = FALSE
+)
 }
 \arguments{
 \item{studyid}{Mandatory, character \cr
