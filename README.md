@@ -12,26 +12,30 @@ of a given repeat-dose toxicological study.
 
 # Installation
 
-```
-# Install from GitHub
-install.packages("devtools")
-devtools::install_github('phuse-org/send-summarizer')
-```
-
-### for development
 clone the repo and follow the instructions.  
 
+### for development
+
 ```
-setwd('send-summarizer')
+setwd('biocelerate-cross-study/')
 devtools::load_all(".")
 sendSummarizer::send_cross_study_app('path_database.db')
 
 ```
 
+### for using the package
+
+```
+setwd('biocelerate-cross-study/')
+devtools::install(".")
+sendSummarizer::send_cross_study_app('path_database.db')
+
+```
 
 # more example
 
-```
+```{R}
+
 path_db <- "C:/directory/send.db"
 studyid <- '112344'
 
@@ -52,6 +56,11 @@ bw_score
 all_score <- get_all_score(studyid, path_db, domain = c('lb', 'bw', 'mi'))
 all_score
 
+
+
 compile <- get_compile_data(studyid, path_db)
 compile
+
+
+
 ```
