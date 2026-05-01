@@ -18,3 +18,4 @@
 ^manifest\.json$
 ^no_git_dir$
 ^test_send_summarizer_functions\.R$
+^LICENSE\.md$
